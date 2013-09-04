@@ -158,6 +158,9 @@ void printCostInfo(const vector<double>& old_cost_vals, const vector<double>& mo
     if (cnt_names.size() == 0) return;
     printf("%15s | %10s---%10s---%10s---%10s\n", "CONSTRAINTS", "----------", "----------", "----------", "----------");
     for (size_t i=0; i < old_cnt_vals.size(); ++i) {
+      if (cnt_names[i].find("collision") != std::string::npos && new_cnt_vals[i] < 1e-8 && old_cnt_vals[i] < 1e-8) {
+        continue;
+      }
       double approx_improve = old_cnt_vals[i] - model_cnt_vals[i];
       double exact_improve = old_cnt_vals[i] - new_cnt_vals[i];
       if (fabs(approx_improve) > 1e-8)
@@ -507,11 +510,16 @@ OptStatus NeedleSQP::optimize() {
   vector<ConstraintPtr> dynamics_constraints;
   vector<ConstraintPtr> collision_constraints;
 
+  vector<string> dynamics_constraints_names;
+  vector<string> collision_constraints_names;
+
   for (int i = 0; i < constraints.size(); ++i) {
-    if (constraints[i]->name() == "collision") {
+    if (constraints[i]->name().find("collision") != std::string::npos) {
       collision_constraints.push_back(constraints[i]);
+      collision_constraints_names.push_back(constraints[i]->name());
     } else {
       dynamics_constraints.push_back(constraints[i]);
+      dynamics_constraints_names.push_back(constraints[i]->name());
     }
   }
 
@@ -671,7 +679,7 @@ OptStatus NeedleSQP::optimize() {
           LOG_INFO(" ");
           printCostInfo(results_.cost_vals, model_cost_vals, new_cost_vals,
                         results_.cnt_viols, concat(model_dynamics_cnt_viols, model_collision_cnt_viols), concat(new_dynamics_cnt_viols, new_collision_cnt_viols), cost_names,
-                        cnt_names, merit_error_coeff_);
+                        concat(dynamics_constraints_names, collision_constraints_names), merit_error_coeff_);
           printf("%15s | %10.3e | %10.3e | %10.3e | %10.3e\n", "TOTAL", old_merit, approx_merit_improve, exact_merit_improve, merit_improve_ratio);
         }
 

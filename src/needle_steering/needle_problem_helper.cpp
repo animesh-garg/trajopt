@@ -41,6 +41,9 @@ namespace Needle {
       pi->start = starts[i];
       pi->goal = goals[i];
       pi->T = Ts[i];
+      pi->id = i;
+      pi->start_position_error_relax = this->start_position_error_relax[i];
+      pi->start_orientation_error_relax = this->start_orientation_error_relax[i];
       CreateVariables(prob, pi);
       InitLocalConfigurations(this->robots[i], prob, pi);
       InitTrajectory(prob, pi);
@@ -284,15 +287,23 @@ namespace Needle {
 
   void NeedleProblemHelper::AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(0);
-    VectorOfVectorPtr f(new Needle::PositionError(pi->local_configs[0], pi->start, this->start_position_error_relax, this->start_orientation_error_relax, shared_from_this()));
-    Vector6d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
-    prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
-    pi->dynamics_constraints.push_back(prob.getConstraints().back());
+    if (pi->start_position_error_relax.norm() > 1e-4 || pi->start_orientation_error_relax > 1e-4) {
+      VectorOfVectorPtr f(new Needle::StartPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+      Vector4d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error;
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "entry")));
+      pi->dynamics_constraints.push_back(prob.getConstraints().back());
+    } else {
+      VectorOfVectorPtr f(new Needle::GoalPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+      Vector6d coeffs; coeffs << 1., 1., 1., 1., 1., 1.;//this->coeff_orientation_error;
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
+      pi->dynamics_constraints.push_back(prob.getConstraints().back());
+    }
+
   }
 
   void NeedleProblemHelper::AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(pi->T);
-    VectorOfVectorPtr f(new Needle::PositionError(pi->local_configs[pi->T], pi->goal, Vector3d::Zero(), 0, shared_from_this()));
+    VectorOfVectorPtr f(new Needle::GoalPositionError(pi->local_configs[pi->T], pi->goal, Vector3d::Zero(), 0, shared_from_this()));
     Vector6d coeffs; 
     if (goal_orientation_constraint) {
       coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
@@ -363,11 +374,13 @@ namespace Needle {
       for (int i = 0; i < pi->T; ++i) {
         prob.addConstraint(ConstraintPtr(new CollisionConstraint(collision_dist_pen, collision_coeff, pi->local_configs[i], pi->local_configs[i+1], pi->twistvars.row(i), pi->twistvars.row(i+1))));
         pi->collision_constraints.push_back(prob.getConstraints().back());
+        prob.getConstraints().back()->setName((boost::format("collision_obstacle_%i (needle %i)")%i%pi->id).str());
       }
     } else {
       for (int i = 0; i <= pi->T; ++i) {
         prob.addConstraint(ConstraintPtr(new CollisionConstraint(collision_dist_pen, collision_coeff, pi->local_configs[i], pi->twistvars.row(i))));
         pi->collision_constraints.push_back(prob.getConstraints().back());
+        prob.getConstraints().back()->setName((boost::format("collision_obstacle_%i (needle %i)")%i%pi->id).str());
       }
     }
   }
@@ -378,6 +391,7 @@ namespace Needle {
         for (int j = 0; j < piB->T; ++j) {
           prob.addConstraint(ConstraintPtr(new CollisionConstraint(collision_dist_pen, collision_coeff, piA->local_configs[i], piA->local_configs[i+1], piB->local_configs[j], piB->local_configs[j+1], piA->twistvars.row(i), piA->twistvars.row(i+1), piB->twistvars.row(j), piB->twistvars.row(j+1))));
           self_collision_constraints.push_back(prob.getConstraints().back());
+          prob.getConstraints().back()->setName((boost::format("self_collision_%i_%i")%i%j).str());
         }
       }
     } else {
@@ -435,9 +449,6 @@ namespace Needle {
     this->collision_dist_pen = 0.05;
     this->collision_coeff = 10;
 
-    this->start_position_error_relax = Vector3d(1.25, 1.25, 0);
-    this->start_orientation_error_relax = 0.0873;
-
     const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis" };
     this->ignored_kinbody_names = vector<string>(ignored_kinbody_c_strs, end(ignored_kinbody_c_strs));
   }
@@ -445,9 +456,7 @@ namespace Needle {
   void NeedleProblemHelper::InitParametersFromConsole(int argc, char** argv) {
     Clear();
     InitParameters();
-    double start_position_error_relax_x = this->start_position_error_relax(0);
-    double start_position_error_relax_y = this->start_position_error_relax(1);
-    double start_position_error_relax_z = this->start_position_error_relax(2);
+    
     Config config;
     //config.add(new Parameter<int>("T", &this->T, "T"));
     config.add(new Parameter<int>("formulation", &this->formulation, "formulation"));
@@ -473,33 +482,27 @@ namespace Needle {
     config.add(new Parameter<bool>("continuous_collision", &this->continuous_collision, "continuous_collision"));
     config.add(new Parameter<bool>("control_constraints", &this->control_constraints, "control_constraints"));
     config.add(new Parameter<bool>("goal_orientation_constraint", &this->goal_orientation_constraint, "goal_orientation_constraint"));
-    config.add(new Parameter<bool>("start_position_error_relax_x", &start_position_error_relax_x, "start_position_error_relax_x"));
-    config.add(new Parameter<bool>("start_position_error_relax_y", &start_position_error_relax_y, "start_position_error_relax_y"));
-    config.add(new Parameter<bool>("start_position_error_relax_z", &start_position_error_relax_z, "start_position_error_relax_z"));
-    config.add(new Parameter<bool>("start_orientation_error_relax", &this->start_orientation_error_relax, "start_orientation_error_relax"));
+    
 
     CommandParser parser(config);
     parser.read(argc, argv, true);
 
-    this->start_position_error_relax = Vector3d(start_position_error_relax_x,
-                                                start_position_error_relax_y,
-                                                start_position_error_relax_z);
   }
 
   void NeedleProblemHelper::Clear() {
     starts.clear();
     goals.clear();
-    if (n_needles > 0) {
+    if (robots.size() > 0) {
       EnvironmentBasePtr env = pis[0]->local_configs[0]->GetEnv();
       for (int i = 0; i < n_needles; ++i) {
         env->Remove(robots[i]);
         trajopt::RemoveUserData(*robots[i], "bt");
       }
-      robots.clear();
-      self_collision_constraints.clear();
-      pis.clear();
-      n_needles = 0;
     }
+    robots.clear();
+    self_collision_constraints.clear();
+    pis.clear();
+    n_needles = 0;
   }
 
   void NeedleProblemHelper::AddNeedlesToBullet(OptimizerT& opt) {

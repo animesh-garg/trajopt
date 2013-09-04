@@ -3,31 +3,60 @@
 
 namespace Needle {
 
-  PositionError::PositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
+  StartPositionError::StartPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
 
-  double angle(VectorXd a, VectorXd b) {
+  GoalPositionError::GoalPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
+
+  double cosangle(VectorXd a, VectorXd b) {
     if (a.norm() < 1e-6 || b.norm() < 1e-6) {
-      return 0;
+      return 1;
     } else {
-      return acos(a.dot(b) / (a.norm() * b.norm()));
+      return a.dot(b) / (a.norm() * b.norm());
     }
   }
 
-  VectorXd PositionError::operator()(const VectorXd& a) const {
+  VectorXd StartPositionError::operator()(const VectorXd& a) const {
     assert(a.size() == 6);
     
     Matrix4d current_pose = cfg->pose * expUp(a);
     Vector3d current_rot = rotVec(current_pose.topLeftCorner<3, 3>());
     Vector3d target_rot = rotVec(target_pose.topLeftCorner<3, 3>());
 
-    double orientation_error = fmax(0, fabs(angle(current_rot, target_rot)) - this->orientation_error_relax);
+    //cout << "current rot: " << current_rot.transpose() << endl;
+    //cout << "target rot: " << target_rot.transpose() << endl;
+    //cout << "angle: " << angle(current_rot, target_rot) << endl;
+
+    double orientation_error = cosangle(current_rot, target_rot) - cos(this->orientation_error_relax);
     Vector3d position_error = (current_pose.block<3, 1>(0, 3) - target_pose.block<3, 1>(0, 3)).array().abs();
-    position_error = (position_error - this->position_error_relax).cwiseMax(Vector3d::Zero());
+    position_error = position_error - this->position_error_relax;
+
+    cout << "position error: " << position_error << endl;
+
+    //cout << "orientation error: " << orientation_error << endl;
 
     Vector4d err;
-    err(0) = orientation_error;
-    err.tail<3>() = position_error;
+    err.head<3>() = position_error;
+    err(3) = orientation_error;
     return err;
+  }
+
+  VectorXd GoalPositionError::operator()(const VectorXd& a) const {
+    assert(a.size() == 6);
+
+    Matrix4d current_pose = cfg->pose * expUp(a);
+
+    return logDown(current_pose.inverse() * target_pose);
+    //Vector3d current_rot = rotVec(current_pose.topLeftCorner<3, 3>());
+    //Vector3d target_rot = rotVec(target_pose.topLeftCorner<3, 3>());
+
+    //double orientation_error = fmax(0, fabs(angle(current_rot, target_rot)) - this->orientation_error_relax);
+    //Vector3d position_error = (current_pose.block<3, 1>(0, 3) - target_pose.block<3, 1>(0, 3)).array().abs();
+    //position_error = (position_error - this->position_error_relax).cwiseMax(Vector3d::Zero());
+
+    //Vector4d err;
+    //err.head<3>() = position_error;
+    //err(3) = orientation_error;
+    //return err;
   }
 
   PoseError::PoseError(LocalConfigurationPtr cfg0, LocalConfigurationPtr cfg1, NeedleProblemHelperPtr helper) : cfg0(cfg0), cfg1(cfg1), helper(helper) {}

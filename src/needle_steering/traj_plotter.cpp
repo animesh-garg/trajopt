@@ -2,12 +2,11 @@
 
 namespace Needle {
 
-  TrajPlotter::TrajPlotter(const vector<NeedleProblemInstancePtr>& pis) : pis(pis) {
-    viewer = OSGViewer::GetOrCreate(pis[0]->local_configs[0]->GetEnv());
-  }
+  TrajPlotter::TrajPlotter() {}
 
   void TrajPlotter::OptimizerCallback(OptProb* prob, DblVec& x, NeedleProblemHelperPtr helper) {
     vector<GraphHandlePtr> handles;
+    OSGViewerPtr viewer = OSGViewer::GetOrCreate(helper->pis[0]->local_configs[0]->GetEnv());
     //BOOST_FOREACH(CostPtr& cost, prob->getCosts()) {
     //  if (Plotter* plotter = dynamic_cast<Plotter*>(cost.get())) {
     //    plotter->Plot(x, *(helper->local_configs[0]->GetEnv()), handles);
@@ -21,17 +20,37 @@ namespace Needle {
     //}
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
     //CollisionChecker::GetOrCreate(*env)->PlotCollisionGeometry(handles);//SetContactDistance(collision_dist_pen + 0.05);
-    for (int k = 0; k < pis.size(); ++k) {
-      vector<KinBodyPtr> bodies = pis[k]->local_configs[0]->GetBodies();
-      MatrixXd vals = getTraj(x, pis[k]->twistvars);
+    for (int k = 0; k < helper->pis.size(); ++k) {
+      vector<KinBodyPtr> bodies = helper->pis[k]->local_configs[0]->GetBodies();
+      MatrixXd vals = getTraj(x, helper->pis[k]->twistvars);
       for (int i=0; i < vals.rows(); ++i) {
-        pis[k]->local_configs[i]->SetDOFValues(toDblVec(vals.row(i)));
+        helper->pis[k]->local_configs[i]->SetDOFValues(toDblVec(vals.row(i)));
         BOOST_FOREACH(const KinBodyPtr& body, bodies) {
           handles.push_back(viewer->PlotKinBody(body));
           SetTransparency(handles.back(), .35);
         }
       }
     }
+    viewer->Idle();
+  }
+
+  NeedleSimPlotter::NeedleSimPlotter() {}
+
+  void NeedleSimPlotter::Plot(const vector< vector<Vector6d> >& states, NeedleProblemPlannerPtr planner) {
+    KinBodyPtr robot = planner->env->ReadRobotURI(RobotBasePtr(), planner->robot_file_path);
+    planner->env->Add(robot, true);
+    vector<GraphHandlePtr> handles;
+    OSGViewerPtr viewer = OSGViewer::GetOrCreate(planner->env);
+    viewer->UpdateSceneData();
+    viewer->SetAllTransparency(planner->env_transparency);
+    for (int i = 0; i < states.size(); ++i) {
+      for (int j = 0; j < states[i].size(); ++j) {
+        robot->SetTransform(matrixToTransform(expUp(states[i][j])));
+        handles.push_back(viewer->PlotKinBody(robot));
+        SetTransparency(handles.back(), .35);
+      }
+    }
+    planner->env->Remove(robot);
     viewer->Idle();
   }
 }

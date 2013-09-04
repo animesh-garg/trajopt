@@ -411,11 +411,13 @@ ConvexConstraintsPtr CollisionConstraint::convex(const vector<double>& x) {
 }
 DblVec CollisionConstraint::value(const vector<double>& x, Model* model) {
   DblVec dists;
+  cout << "calculating for " << name() << endl;
   m_calc->CalcDists(x, dists);
   DblVec out(dists.size());
   for (int i=0; i < dists.size(); ++i) {
     out[i] = pospart(m_dist_pen - dists[i]) * m_coeff;
   }
+  cout << "result: " << toVectorXd(out).transpose() << endl;
   return out;
 }
 

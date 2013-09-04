@@ -22,23 +22,34 @@ namespace Needle {
     argc(argc),
     argv(argv),
     helper(new NeedleProblemHelper()),
-    plotting(false),
+    stage_plotting(false),
     verbose(false),
     plot_final_result(false),
     env_transparency(0.1),
+    is_first_needle_run(true),
+    deviation(INFINITY),
     data_dir(get_current_directory() + "/../data") {
 
     vector<string> start_string_vec;
-    start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
-    start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
     vector<string> goal_string_vec;
+    start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
     goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,0.78,0");
-    goal_string_vec.push_back("-3.926,7.78291,-1.08402,0,0.75,0");
+    start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
+    goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,0.78,0");
+
+    this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
+    this->start_orientation_error_relax.push_back(0.0873);
+    this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
+    this->start_orientation_error_relax.push_back(0.0873);
+
+    vector<double> start_position_error_relax_x;
+    vector<double> start_position_error_relax_y;
+    vector<double> start_position_error_relax_z;
 
     int T = 25;
     
     Config config;
-    config.add(new Parameter<bool>("plotting", &this->plotting, "plotting"));
+    config.add(new Parameter<bool>("stage_plotting", &this->stage_plotting, "stage_plotting"));
     config.add(new Parameter<bool>("plot_final_result", &this->plot_final_result, "plot_final_result"));
     config.add(new Parameter<bool>("verbose", &this->verbose, "verbose"));
     config.add(new Parameter<double>("env_transparency", &this->env_transparency, "env_transparency"));
@@ -47,6 +58,10 @@ namespace Needle {
     config.add(new Parameter<string>("robot_file_path", &this->robot_file_path, "robot_file_path"));
     config.add(new Parameter< vector<string> >("start_vec", &start_string_vec, "s"));
     config.add(new Parameter< vector<string> >("goal_vec", &goal_string_vec, "g"));
+    config.add(new Parameter< vector<double> >("start_position_error_relax_x", &start_position_error_relax_x, "start_position_error_relax_x"));
+    config.add(new Parameter< vector<double> >("start_position_error_relax_y", &start_position_error_relax_y, "start_position_error_relax_y"));
+    config.add(new Parameter< vector<double> >("start_position_error_relax_z", &start_position_error_relax_z, "start_position_error_relax_z"));
+    config.add(new Parameter< vector<double> >("start_orientation_error_relax", &this->start_orientation_error_relax, "start_orientation_error_relax"));
     config.add(new Parameter<int>("T", &T, "T"));
     CommandParser parser(config);
     parser.read(argc, argv, true);
@@ -71,14 +86,14 @@ namespace Needle {
     this->env->StopSimulation();
 
     OSGViewerPtr viewer;
-    if (this->plotting || this->plot_final_result) {
+    if (this->stage_plotting || this->plot_final_result) {
       viewer = OSGViewer::GetOrCreate(env);
       assert(viewer);
     }
 
     this->env->Load(this->env_file_path);
 
-    if (this->plotting || this->plot_final_result) {
+    if (this->stage_plotting || this->plot_final_result) {
       viewer->SetAllTransparency(this->env_transparency);
     }
 
@@ -93,23 +108,35 @@ namespace Needle {
       strtk::parse(start_string_vec[i], ",", start_vec);
       strtk::parse(goal_string_vec[i], ",", goal_vec);
       Vector6d start = toVectorXd(start_vec), goal = toVectorXd(goal_vec);
-      Matrix4d start_pose, goal_pose;
-      start_pose.topLeftCorner<3, 3>() = rotMat(start.tail<3>());
-      start_pose.topRightCorner<3, 1>() = start.head<3>();
-      start_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
-      start_pose(3, 3) = 1;
-      goal_pose.topLeftCorner<3, 3>() = rotMat(goal.tail<3>());
-      goal_pose.topRightCorner<3, 1>() = goal.head<3>();
-      goal_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
-      goal_pose(3, 3) = 1;
-      starts.push_back(logDown(start_pose));
-      goals.push_back(logDown(goal_pose));
+      //Matrix4d start_pose, goal_pose;
+      //start_pose.topLeftCorner<3, 3>() = rotMat(start.tail<3>());
+      //start_pose.topRightCorner<3, 1>() = start.head<3>();
+      //start_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
+      //start_pose(3, 3) = 1;
+      //goal_pose.topLeftCorner<3, 3>() = rotMat(goal.tail<3>());
+      //goal_pose.topRightCorner<3, 1>() = goal.head<3>();
+      //goal_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
+      //goal_pose(3, 3) = 1;
+      starts.push_back(logDown(se4Up(start)));//start_pose));
+      goals.push_back(logDown(se4Up(goal)));//goal_pose));
     }
 
     for (int i = 0; i < n_needles; ++i) {
       this->Ts.push_back(T);
     }
 
+    if (!(start_position_error_relax_x.size() == start_position_error_relax_y.size() && start_position_error_relax_y.size() == start_position_error_relax_z.size())) {
+      throw std::runtime_error("start position error relaxes must have the same size.");
+    }
+
+    if (start_position_error_relax_x.size() > 0) {
+      this->start_position_error_relax.clear();
+      for (int i = 0; i < start_position_error_relax_x.size(); ++i) {
+        this->start_position_error_relax.push_back(Vector3d(start_position_error_relax_x[i],
+                                                            start_position_error_relax_y[i],
+                                                            start_position_error_relax_z[i]));
+      }
+    }
   }
 
   vector<VectorXd> NeedleProblemPlanner::Solve(const vector<VectorXd>& initial) {
@@ -118,7 +145,22 @@ namespace Needle {
     helper->n_needles = this->n_needles;
     helper->starts = this->starts;
     helper->goals = this->goals;
+    helper->start_position_error_relax = this->start_position_error_relax;
+    helper->start_orientation_error_relax = this->start_orientation_error_relax;
     helper->Ts = this->Ts;
+
+    if (this->deviation > 0.01) {
+      helper->merit_error_coeff = 10;
+    } else {
+      cout << "small deviation" << endl;
+      helper->merit_error_coeff = 100;
+    }
+
+    if (!this->is_first_needle_run) { // fix start position if not first run
+      helper->start_position_error_relax.front() = Vector3d::Zero();
+      helper->start_orientation_error_relax.front() = 0;
+    }
+
     for (int i = 0; i < n_needles; ++i) {
       helper->robots.push_back(this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path));
       this->env->Add(helper->robots.back(), true);
@@ -134,10 +176,10 @@ namespace Needle {
       helper->SetSolutions(initial, opt);
     }
 
-    if (this->plotting || this->plot_final_result) {
-      this->plotter.reset(new Needle::TrajPlotter(helper->pis));
+    if (this->stage_plotting || this->plot_final_result) {
+      this->plotter.reset(new Needle::TrajPlotter());
     }
-    if (this->plotting) {
+    if (this->stage_plotting) {
       opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper));
     }
 
@@ -149,54 +191,70 @@ namespace Needle {
   }
 
   Vector6d NeedleProblemPlanner::PerturbState(const Vector6d& state) {
-    Vector6d ret;
-    for (int i = 0; i < 3; ++i) {
-      ret(i) += normal() * 0.01;
-    }
+    Vector6d ret = state;
+    //for (int i = 0; i < 3; ++i) {
+    //  ret(i) += normal() * 0.005;
+    //}
+    //for (int i = 3; i < 6; ++i) {
+    //  ret(i) += normal() * 0.001;
+    //}
     return ret;
   }
 
   vector<Vector6d> NeedleProblemPlanner::SimulateExecution(const vector<Vector6d>& current_states) {
     vector<Vector6d> ret;
-    for (int i = 0; i < current_states.size() - n_needles; ++i) { // leave as it is
+    ret.clear();
+    //cout << "n needles: " << n_needles << endl;
+    for (int i = 0; i < (int) current_states.size() - n_needles; ++i) { // leave as it is
       ret.push_back(current_states[i]);
     }
 
     double phi = helper->GetPhi(this->x, 0, helper->pis.front());
     double Delta = helper->GetDelta(this->x, 0, helper->pis.front());
     double curvature_or_radius = helper->GetCurvatureOrRadius(this->x, 0, helper->pis.front());
-    Vector6d state_to_change = current_states[current_states.size() - n_needles];
-    ret.push_back(PerturbState(logDown(helper->TransformPose(expUp(state_to_change), phi, Delta, curvature_or_radius))));
+
+    cout << "phi: " << phi << endl;
+    cout << "Delta: " << Delta << endl;
+    cout << "curvature_or_radius: " << curvature_or_radius << endl;
+    Vector6d state_to_change;
+    if (this->is_first_needle_run) {
+      state_to_change = logDown(helper->pis.front()->local_configs.front()->pose);
+    } else {
+      state_to_change = current_states[current_states.size() - n_needles];
+    }
+
+    Vector6d new_state_without_noise = logDown(helper->TransformPose(expUp(state_to_change), phi, Delta, curvature_or_radius));
+    Vector6d new_state = PerturbState(new_state_without_noise);
+    this->deviation = (new_state_without_noise - new_state).norm();
+    
+    ret.push_back(new_state);
+
+    this->starts.front() = ret.back();
 
     for (int i = current_states.size() - n_needles + 1, j = 0; i < current_states.size(); ++i, ++j) { // leave as it is
       ret.push_back(current_states[i]);
     }
 
-    vector<Vector6d> prev_starts = starts;
-    vector<Vector6d> prev_goals = goals;
-
-    starts.clear();
-    goals.clear();
-
     if (Ts.front() > 1) {
-      starts.push_back(ret[current_states.size() - n_needles]);
-      goals.push_back(prev_goals.front());
       --Ts.front();
+      this->is_first_needle_run = false;
     } else {
       // get rid of first time step
-      vector<int> new_Ts;
-      for (int i = 1; i < Ts.size(); ++i) {
-        new_Ts.push_back(Ts[i]);
-      }
-      this->Ts = new_Ts;
+      this->Ts.erase(this->Ts.begin());
+      this->starts.erase(this->starts.begin());
+      this->goals.erase(this->goals.begin());
+      this->goals.erase(this->goals.begin());
+      this->start_position_error_relax.erase(this->start_position_error_relax.begin());
+      this->start_orientation_error_relax.erase(this->start_orientation_error_relax.begin());
+      this->is_first_needle_run = true;
       --n_needles;
     }
 
-    for (int i = current_states.size() - n_needles, j = 1; i < current_states.size(); ++i, ++j) {
-      this->starts.push_back(ret[i]);
-      this->goals.push_back(prev_goals[j]);
+    cout << "new states: " << endl;
+    for (int i = 0; i < ret.size(); ++i) {
+      cout << se4Down(expUp(ret[i])).transpose() << endl;
     }
-
+    
     return ret;
   }
 

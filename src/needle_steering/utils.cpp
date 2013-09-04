@@ -122,7 +122,6 @@ namespace Needle {
   }
 
   Matrix4d expUp(const Vector6d& x) {
-    assert(x.size() == 6);
     Matrix4d X = Matrix4d::Identity();
     X.block<3, 3>(0, 0) = expRot(x.tail<3>());
     X.block<3, 1>(0, 3) = expA(x.tail<3>()) * x.head<3>();
@@ -131,9 +130,23 @@ namespace Needle {
   }
 
   Vector6d logDown(const Matrix4d& X) {
-    VectorXd x(6);
+    Vector6d x;
     x.tail<3>() = logRot(X.block<3, 3>(0, 0));
     x.head<3>() = (expA(x.tail<3>())).inverse() * X.block<3, 1>(0, 3);
+    return x;
+  }
+
+  Matrix4d se4Up(const Vector6d& x) {
+    Matrix4d X = Matrix4d::Identity();
+    X.block<3, 3>(0, 0) = rotMat(x.tail<3>());
+    X.block<3, 1>(0, 3) = x.head<3>();
+    return X;
+  }
+
+  Vector6d se4Down(const Matrix4d& X) {
+    Vector6d x;
+    x.tail<3>() = rotVec(X.block<3, 3>(0, 0));
+    x.head<3>() = X.block<3, 1>(0, 3);
     return x;
   }
 

@@ -80,6 +80,8 @@ namespace Needle {
   Vector3d logRot(const Matrix3d& X);
   Matrix4d expUp(const Vector6d& x);
   Vector6d logDown(const Matrix4d& X);
+  Matrix4d se4Up(const Vector6d& x);
+  Vector6d se4Down(const Matrix4d& X);
 
   OpenRAVE::Transform matrixToTransform(const Matrix4d& X);
   OpenRAVE::Transform vecToTransform(const Vector6d& x);
@@ -174,7 +176,7 @@ namespace Needle {
 
   typedef boost::shared_ptr<LocalConfiguration> LocalConfigurationPtr;
 
-  struct PositionError : public VectorOfVector {
+  struct StartPositionError : public VectorOfVector {
     LocalConfigurationPtr cfg;
     KinBodyPtr body;
     Matrix4d target_pose;
@@ -182,7 +184,19 @@ namespace Needle {
     double orientation_error_relax;
     //Vector6d target_pos;
     NeedleProblemHelperPtr helper;
-    PositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
+    StartPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
+    VectorXd operator()(const VectorXd& a) const;
+  };
+
+  struct GoalPositionError : public VectorOfVector {
+    LocalConfigurationPtr cfg;
+    KinBodyPtr body;
+    Matrix4d target_pose;
+    Vector3d position_error_relax;
+    double orientation_error_relax;
+    //Vector6d target_pos;
+    NeedleProblemHelperPtr helper;
+    GoalPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
     VectorXd operator()(const VectorXd& a) const;
   };
 
@@ -226,6 +240,9 @@ namespace Needle {
     vector<ConstraintPtr> collision_constraints;
     DblVec initVec;
     int T;
+    int id;
+    Vector3d start_position_error_relax;
+    double start_orientation_error_relax;
 
     VectorXd GetSolution(OptimizerT& opt);
     void SetSolution(const VectorXd& sol, OptimizerT& opt);
@@ -265,9 +282,7 @@ namespace Needle {
     int rotation_cost;
     bool use_speed_deviation_constraint;
     bool use_speed_deviation_cost;
-    bool plotting;
     bool verbose;
-    bool plot_final_result;
     bool explicit_controls;
     bool continuous_collision;
     bool control_constraints;
@@ -282,8 +297,8 @@ namespace Needle {
     vector<NeedleProblemInstancePtr> pis;
     vector<ConstraintPtr> self_collision_constraints;
 
-    Vector3d start_position_error_relax;
-    double start_orientation_error_relax;
+    vector<Vector3d> start_position_error_relax;
+    vector<double> start_orientation_error_relax;
 
     void ConfigureProblem(OptProb& prob);
     void InitOptimizeVariables(OptimizerT& opt);
@@ -337,10 +352,12 @@ namespace Needle {
     vector<int> Ts;
     NeedleProblemHelperPtr helper;
 
-    bool plotting;
+    bool stage_plotting;
     bool plot_final_result;
     bool verbose;
+    bool is_first_needle_run;
     double env_transparency;
+    double deviation;
     string data_dir;
     string env_file_path;
     string robot_file_path;
@@ -351,24 +368,30 @@ namespace Needle {
     vector<Vector6d> starts;
     vector<Vector6d> goals;
     DblVec x;
+    vector<Vector3d> start_position_error_relax;
+    vector<double> start_orientation_error_relax;
 
     NeedleProblemPlanner(int argc, char **argv);
     ~NeedleProblemPlanner();
     Vector6d PerturbState(const Vector6d& state);
-    vector<VectorXd> Solve(const vector<VectorXd>& initial = vector<VectorXd>() );
+    vector<VectorXd> Solve(const vector<VectorXd>& initial=vector<VectorXd>());
     vector<VectorXd> GetSolutionsWithoutFirstTimestep(const vector<VectorXd>& sol);
     DblVec Solve(const DblVec& x);
-    vector<Vector6d> SimulateExecution(const vector<Vector6d>& current_states);//const vector<VectorXd>& sol);
-    //DblVec InitializeSolutionWithoutFirstTimestepAndSolve(const DblVec& x);
+    vector<Vector6d> SimulateExecution(const vector<Vector6d>& current_states);
     bool Finished() const;
   };
 
   typedef boost::shared_ptr<NeedleProblemPlanner> NeedleProblemPlannerPtr;
 
   struct TrajPlotter {
-    OSGViewerPtr viewer;
-    vector<NeedleProblemInstancePtr> pis;
-    TrajPlotter(const vector<NeedleProblemInstancePtr>& pis);
+    TrajPlotter();
     void OptimizerCallback(OptProb*, DblVec& x, NeedleProblemHelperPtr helper);
   };
+
+  struct NeedleSimPlotter {
+    NeedleSimPlotter();
+    void Plot(const vector< vector<Vector6d> >& states, NeedleProblemPlannerPtr planner);
+  };
+
+
 }
