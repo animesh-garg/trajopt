@@ -15,16 +15,47 @@ namespace Needle {
     if (phivars.size()) {
       ret = concat(ret, getVec(x, phivars.flatten()));
     }
-    if (curvature_or_radius_vars.size()) {
-      ret = concat(ret, getVec(x, curvature_or_radius_vars.flatten()));
-    }
     if (Deltavars.size()) {
       ret = concat(ret, getVec(x, Deltavars.flatten()));
     }
     if (Deltavar.var_rep) {
       ret = concat(ret, getVec(x, singleton<Var>(Deltavar)));
     }
+    if (curvature_or_radius_vars.size()) {
+      ret = concat(ret, getVec(x, curvature_or_radius_vars.flatten()));
+    }
     return ret;
+  }
+
+  void NeedleProblemInstance::PrintSolutionTrajectory(const VectorXd& sol) {
+    int offset = 0;
+    cout << "solution trajectory: " << endl;
+    for (int i = 0; i < local_configs.size(); ++i) {
+      cout << sol.middleRows(offset, 6).transpose() << endl;
+      offset += 6;
+    }
+    if (twistvars.size()) {
+      cout << "solution twists: " << sol.middleRows(offset, twistvars.size()).transpose() << endl;
+      offset += twistvars.size();
+    }
+    if (phivars.size()) {
+      cout << "solution phis: " << sol.middleRows(offset, phivars.size()).transpose() << endl;
+      offset += phivars.size();
+    }
+    if (Deltavars.size()) {
+      cout << "solution Deltas: " << sol.middleRows(offset, Deltavars.size()).transpose() << endl;
+      offset += Deltavars.size();
+    }
+    if (Deltavar.var_rep) {
+      cout << "solution Delta: " << sol.middleRows(offset, 1).transpose() << endl;
+      offset += 1;
+    }
+    if (curvature_or_radius_vars.size()) {
+      cout << "solution curvature or radius: " << sol.middleRows(offset, curvature_or_radius_vars.size()).transpose() << endl;
+      offset += curvature_or_radius_vars.size();
+    }
+
+
   }
 
   VectorXd NeedleProblemInstance::GetSolutionWithoutFirstTimestep(const VectorXd& sol) {
@@ -36,16 +67,12 @@ namespace Needle {
       offset += 6;
     }
     if (twistvars.size()) {
-      ret = concat(ret, sol.middleRows(offset + 1, twistvars.size() - 1));
+      ret = concat(ret, sol.middleRows(offset + 6, twistvars.size() - 6));
       offset += twistvars.size();
     }
     if (phivars.size()) {
       ret = concat(ret, sol.middleRows(offset + 1, phivars.size() - 1));
       offset += phivars.size();
-    }
-    if (curvature_or_radius_vars.size()) {
-      ret = concat(ret, sol.middleRows(offset + 1, curvature_or_radius_vars.size() - 1));
-      offset += curvature_or_radius_vars.size();
     }
     if (Deltavars.size()) {
       ret = concat(ret, sol.middleRows(offset + 1, Deltavars.size() - 1));
@@ -55,6 +82,10 @@ namespace Needle {
       ret = concat(ret, sol.middleRows(offset, 1));
       offset += 1;
     } 
+    if (curvature_or_radius_vars.size()) {
+      ret = concat(ret, sol.middleRows(offset + 1, curvature_or_radius_vars.size() - 1));
+      offset += curvature_or_radius_vars.size();
+    }
     return ret;
   }
 
@@ -73,10 +104,6 @@ namespace Needle {
       setVec(x, phivars.flatten(), sol.middleRows(offset, phivars.size()));
       offset += phivars.size();
     }
-    if (curvature_or_radius_vars.size()) {
-      setVec(x, curvature_or_radius_vars.flatten(), sol.middleRows(offset, curvature_or_radius_vars.size()));
-      offset += curvature_or_radius_vars.size();
-    }
     if (Deltavars.size()) {
       setVec(x, Deltavars.flatten(), sol.middleRows(offset, Deltavars.size()));
       offset += Deltavars.size();
@@ -84,6 +111,10 @@ namespace Needle {
     if (Deltavar.var_rep) {
       setVec(x, singleton<Var>(Deltavar), sol.middleRows(offset, 1));
       offset += 1;
+    }
+    if (curvature_or_radius_vars.size()) {
+      setVec(x, curvature_or_radius_vars.flatten(), sol.middleRows(offset, curvature_or_radius_vars.size()));
+      offset += curvature_or_radius_vars.size();
     }
   }
 }

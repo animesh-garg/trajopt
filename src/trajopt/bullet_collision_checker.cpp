@@ -460,6 +460,10 @@ void BulletCollisionChecker::AddCastHullShape(Configuration& rad0, Configuration
   rad0.SetDOFValues(startjoints);
   bool useTrimesh = trajopt::GetUserData(*links[0]->GetParent(), "bt_use_trimesh");
   CDPtr cd = boost::static_pointer_cast<KinBodyCollisionData>(trajopt::GetUserData(*links[0]->GetParent(), "bt"));
+  if (!cd) {
+    cd.reset(new KinBodyCollisionData(links[0]->GetParent()));
+    trajopt::SetUserData(*links[0]->GetParent(), "bt", cd);
+  }
   for (int i = 0; i < cd->cows.size(); ++i) {
     m_managed_cows.push_back(cd->cows[i]);//CowPtr(GetCow(links[i].get())));
   }

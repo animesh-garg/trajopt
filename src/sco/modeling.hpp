@@ -57,12 +57,12 @@ public:
   ConvexObjective() {}
   void addAffExpr(const AffExpr&);
   void addQuadExpr(const QuadExpr&);
-  void addHinge(const AffExpr&, double coeff);
-  void addAbs(const AffExpr&, double coeff);
+  void addHinge(const AffExpr&, double coeff=1);
+  void addAbs(const AffExpr&, double coeff=1);
   void addHinges(const AffExprVector&);
   void addL1Norm(const AffExprVector&);
   void addL2Norm(const AffExprVector&);
-  void addMax(const AffExprVector&);
+  void addMax(const AffExprVector&, double coeff=1);
   
   void addToModelAndObjective(Model* model, AffExpr& objective, bool permissive=false);
   void addToModelAndObjective(Model* model, QuadExpr& objective);

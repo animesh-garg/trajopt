@@ -25,13 +25,11 @@ int main(int argc, char** argv) {
   }
 
   while (!planner->Finished()) {
-    //cout << planner->Ts[0] << endl;
     sol = planner->GetSolutionsWithoutFirstTimestep(planner->Solve(sol));
-    states.push_back(planner->SimulateExecution(states.back()));
+    planner->SimulateExecution();
     if (sim_plotting) {
-      sim_plotter->Plot(states, planner);
+      sim_plotter->Plot(planner);
     }
-    cout << "simulate one step" << endl;
   }
 
   return 0;

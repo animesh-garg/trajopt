@@ -85,4 +85,44 @@ namespace Needle {
     }
     return out;
   }
+
+  NeedleCollisionClearanceCost::NeedleCollisionClearanceCost(NeedleProblemHelperPtr helper, double coeff) :
+    helper(helper),
+    coeff(coeff) {
+    this->cast_ccs.clear();
+    this->cast_self_ccs.clear();
+    for (int i = 0; i < helper->pis.size(); ++i) {
+      NeedleProblemInstancePtr pi = helper->pis[i];
+      for (int j = 0; j < (int) pi->local_configs.size() - 1; ++j) {
+        cast_ccs.push_back(new CastCollisionEvaluator(pi->local_configs[j], pi->local_configs[j+1], pi->twistvars.row(j), pi->twistvars.row(j+1)));
+      }
+    }
+    for (int i = 0; i < helper->pis.size(); ++i) {
+      for (int j = i + 1; j < helper->pis.size(); ++j) {
+        NeedleProblemInstancePtr pi0 = helper->pis[i];
+        NeedleProblemInstancePtr pi1 = helper->pis[j];
+        for (int t0 = 0; t0 < (int) pi0->local_configs.size() - 1; ++t0) {
+          for (int t1 = 0; t1 < (int) pi1->local_configs.size() - 1; ++t1) {
+            cast_self_ccs.push_back(new CastSelfCollisionEvaluator(pi0->local_configs[t0], pi0->local_configs[t0+1], pi1->local_configs[t1], pi1->local_configs[t1+1]));
+          }
+        }
+      }
+    }
+  }
+
+  ConvexObjectivePtr NeedleCollisionClearanceCost::convex(const vector<double>& x) {
+    ConvexObjectivePtr out(new ConvexObjective());
+    vector<AffExpr> exprs;
+    BOOST_FOREACH(const CastCollisionEvaluatorPtr& cc, this->cast_ccs) {
+      vector<AffExpr> tmp_exprs;
+      cc->CalcDistExpressions(x, tmp_exprs);
+      exprs.insert(exprs.end(), tmp_exprs.begin(), tmp_exprs.end());
+    }
+    BOOST_FOREACH(const CastSelfCollisionEvaluatorPtr& cc, this->cast_ccs) {
+      vector<AffExpr> tmp_exprs;
+      cc->CalcDistExpressions(x, tmp_exprs);
+      exprs.insert(exprs.end(), tmp_exprs.begin(), tmp_exprs.end());
+    }
+    out->addMax(exprs);
+  }
 }

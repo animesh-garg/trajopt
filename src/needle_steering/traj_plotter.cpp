@@ -19,7 +19,7 @@ namespace Needle {
     //  }
     //}
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
-    //CollisionChecker::GetOrCreate(*env)->PlotCollisionGeometry(handles);//SetContactDistance(collision_dist_pen + 0.05);
+    CollisionChecker::GetOrCreate(*env)->PlotCollisionGeometry(handles);//SetContactDistance(collision_dist_pen + 0.05);
     for (int k = 0; k < helper->pis.size(); ++k) {
       vector<KinBodyPtr> bodies = helper->pis[k]->local_configs[0]->GetBodies();
       MatrixXd vals = getTraj(x, helper->pis[k]->twistvars);
@@ -36,18 +36,18 @@ namespace Needle {
 
   NeedleSimPlotter::NeedleSimPlotter() {}
 
-  void NeedleSimPlotter::Plot(const vector< vector<Vector6d> >& states, NeedleProblemPlannerPtr planner) {
+  void NeedleSimPlotter::Plot(NeedleProblemPlannerPtr planner) {
     KinBodyPtr robot = planner->env->ReadRobotURI(RobotBasePtr(), planner->robot_file_path);
     planner->env->Add(robot, true);
     vector<GraphHandlePtr> handles;
     OSGViewerPtr viewer = OSGViewer::GetOrCreate(planner->env);
     viewer->UpdateSceneData();
     viewer->SetAllTransparency(planner->env_transparency);
-    for (int i = 0; i < states.size(); ++i) {
-      for (int j = 0; j < states[i].size(); ++j) {
-        robot->SetTransform(matrixToTransform(expUp(states[i][j])));
+    for (int i = 0; i < planner->simulated_needle_trajectories.size(); ++i) {
+      for (int j = 0; j < planner->simulated_needle_trajectories[i].size(); ++j) {
+        robot->SetTransform(matrixToTransform(expUp(planner->simulated_needle_trajectories[i][j])));
         handles.push_back(viewer->PlotKinBody(robot));
-        SetTransparency(handles.back(), .35);
+        SetTransparency(handles.back(), 1);
       }
     }
     planner->env->Remove(robot);

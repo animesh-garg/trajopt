@@ -176,27 +176,33 @@ namespace Needle {
 
   typedef boost::shared_ptr<LocalConfiguration> LocalConfigurationPtr;
 
-  struct StartPositionError : public VectorOfVector {
+  struct InsertionRegionPositionError : public VectorOfVector {
     LocalConfigurationPtr cfg;
     KinBodyPtr body;
     Matrix4d target_pose;
     Vector3d position_error_relax;
     double orientation_error_relax;
-    //Vector6d target_pos;
     NeedleProblemHelperPtr helper;
-    StartPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
+    InsertionRegionPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
     VectorXd operator()(const VectorXd& a) const;
   };
 
-  struct GoalPositionError : public VectorOfVector {
+  struct ExactPositionError : public VectorOfVector {
     LocalConfigurationPtr cfg;
     KinBodyPtr body;
     Matrix4d target_pose;
-    Vector3d position_error_relax;
-    double orientation_error_relax;
-    //Vector6d target_pos;
     NeedleProblemHelperPtr helper;
-    GoalPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper);
+    ExactPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, NeedleProblemHelperPtr helper);
+    VectorXd operator()(const VectorXd& a) const;
+  };
+
+  struct BallPositionError : public VectorOfVector {
+    LocalConfigurationPtr cfg;
+    KinBodyPtr body;
+    Matrix4d target_pose;
+    NeedleProblemHelperPtr helper;
+    double distance_error_relax;
+    BallPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, double distance_error_relax, NeedleProblemHelperPtr helper);
     VectorXd operator()(const VectorXd& a) const;
   };
 
@@ -238,15 +244,18 @@ namespace Needle {
     vector<LocalConfigurationPtr> local_configs;
     vector<ConstraintPtr> dynamics_constraints;
     vector<ConstraintPtr> collision_constraints;
+    NeedleProblemHelperPtr helper;
     DblVec initVec;
     int T;
     int id;
     Vector3d start_position_error_relax;
     double start_orientation_error_relax;
+    double goal_distance_error_relax;
 
     VectorXd GetSolution(OptimizerT& opt);
     void SetSolution(const VectorXd& sol, OptimizerT& opt);
     VectorXd GetSolutionWithoutFirstTimestep(const VectorXd& sol);
+    void PrintSolutionTrajectory(const VectorXd& sol);
   };
 
 
@@ -271,6 +280,7 @@ namespace Needle {
     double trust_expand_ratio;
     double merit_error_coeff;
     int max_merit_coeff_increases;
+    double trust_box_size;
     bool record_trust_region_history;
     vector<int> Ts;
     int n_dof;
@@ -299,6 +309,7 @@ namespace Needle {
 
     vector<Vector3d> start_position_error_relax;
     vector<double> start_orientation_error_relax;
+    vector<double> goal_distance_error_relax;
 
     void ConfigureProblem(OptProb& prob);
     void InitOptimizeVariables(OptimizerT& opt);
@@ -370,6 +381,14 @@ namespace Needle {
     DblVec x;
     vector<Vector3d> start_position_error_relax;
     vector<double> start_orientation_error_relax;
+    vector<double> goal_distance_error_relax;
+    vector<KinBodyPtr> managed_kinbodies;
+    vector<LocalConfigurationPtr> managed_configs;
+
+    vector< vector<Vector6d> > simulated_needle_trajectories;
+
+    //boost::shared_ptr<OptimizerT> opt;
+    //OptProbPtr prob;
 
     NeedleProblemPlanner(int argc, char **argv);
     ~NeedleProblemPlanner();
@@ -377,7 +396,8 @@ namespace Needle {
     vector<VectorXd> Solve(const vector<VectorXd>& initial=vector<VectorXd>());
     vector<VectorXd> GetSolutionsWithoutFirstTimestep(const vector<VectorXd>& sol);
     DblVec Solve(const DblVec& x);
-    vector<Vector6d> SimulateExecution(const vector<Vector6d>& current_states);
+    void SimulateExecution();
+    void AddSimulatedNeedleToBullet(const vector<Vector6d>& states);
     bool Finished() const;
   };
 
@@ -390,7 +410,19 @@ namespace Needle {
 
   struct NeedleSimPlotter {
     NeedleSimPlotter();
-    void Plot(const vector< vector<Vector6d> >& states, NeedleProblemPlannerPtr planner);
+    void Plot(NeedleProblemPlannerPtr planner);
+  };
+
+  struct NeedleCollisionHash : CollisionHash {
+    NeedleCollisionHash(NeedleProblemHelperPtr helper);
+    size_t hash(const DblVec& x);
+
+    NeedleProblemHelperPtr helper;
+  };
+
+  struct NeedleCollisionClearanceCost : CollisionCost {
+    NeedleCollisionClearanceCost(NeedleProblemHelperPtr helper);
+
   };
 
 

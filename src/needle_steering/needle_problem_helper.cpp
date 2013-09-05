@@ -42,8 +42,10 @@ namespace Needle {
       pi->goal = goals[i];
       pi->T = Ts[i];
       pi->id = i;
+      pi->helper = shared_from_this();
       pi->start_position_error_relax = this->start_position_error_relax[i];
       pi->start_orientation_error_relax = this->start_orientation_error_relax[i];
+      pi->goal_distance_error_relax = this->goal_distance_error_relax[i];
       CreateVariables(prob, pi);
       InitLocalConfigurations(this->robots[i], prob, pi);
       InitTrajectory(prob, pi);
@@ -229,6 +231,7 @@ namespace Needle {
     opt.improve_ratio_threshold_ = this->improve_ratio_threshold;
     opt.trust_shrink_ratio_ = this->trust_shrink_ratio;
     opt.trust_expand_ratio_ = this->trust_expand_ratio;
+    opt.trust_box_size_ = this->trust_box_size;
     opt.record_trust_region_history_ = this->record_trust_region_history;
     opt.max_merit_coeff_increases_ = this->max_merit_coeff_increases;
     opt.merit_error_coeff_ = this->merit_error_coeff;
@@ -242,16 +245,18 @@ namespace Needle {
     // Time frame varies from 0 to T instead of from 0 to T-1
     AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
     AddVarArray(prob, pi->T, 1, -PI, PI, "phi", pi->phivars);
-    pi->Delta_lb = (pi->goal.topRows(3) - pi->start.topRows(3)).norm() / pi->T / r_min;
+    pi->Delta_lb = 0;//(pi->goal.topRows(3) - pi->start.topRows(3)).norm() / pi->T / r_min;
     switch (speed_formulation) {
       case ConstantSpeed:
         pi->Deltavar = prob.createVariables(singleton<string>("Delta"), singleton<double>(pi->Delta_lb),singleton<double>(INFINITY))[0];
         break;
-      case VariableSpeed:
+      case VariableSpeed: {
+        double deviate_from = (pi->goal.topRows(3) - pi->start.topRows(3)).norm() / pi->T * 0.5;
         //AddVarArray(prob, T, 1, Delta_lb * 0.5, INFINITY, "speed", Deltavars); // TODO should we have a resonable upper bound for this?
-        AddVarArray(prob, pi->T, 1, pi->Delta_lb*0.5, INFINITY, "speed", pi->Deltavars); // TODO should we have a resonable upper bound for this?
+        AddVarArray(prob, pi->T, 1, deviate_from, INFINITY, "speed", pi->Deltavars); // TODO should we have a resonable upper bound for this?
         //AddVarArray(prob, T, 1, Delta_lb*2, INFINITY, "speed", Deltavars); // TODO should we have a resonable upper bound for this?
         break;
+      }
       SWITCH_DEFAULT;
     }
     // Only the twist variables are incremental (i.e. their trust regions should be around zero)
@@ -288,13 +293,13 @@ namespace Needle {
   void NeedleProblemHelper::AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(0);
     if (pi->start_position_error_relax.norm() > 1e-4 || pi->start_orientation_error_relax > 1e-4) {
-      VectorOfVectorPtr f(new Needle::StartPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+      VectorOfVectorPtr f(new Needle::InsertionRegionPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
       Vector4d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error;
-      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "entry")));
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
     } else {
-      VectorOfVectorPtr f(new Needle::GoalPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
-      Vector6d coeffs; coeffs << 1., 1., 1., 1., 1., 1.;//this->coeff_orientation_error;
+      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[0], pi->start, shared_from_this()));
+      Vector6d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
     }
@@ -303,14 +308,25 @@ namespace Needle {
 
   void NeedleProblemHelper::AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(pi->T);
-    VectorOfVectorPtr f(new Needle::GoalPositionError(pi->local_configs[pi->T], pi->goal, Vector3d::Zero(), 0, shared_from_this()));
-    Vector6d coeffs; 
-    if (goal_orientation_constraint) {
-      coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
+    if (pi->goal_distance_error_relax > 1e-4) {
+      VectorOfVectorPtr f(new Needle::BallPositionError(pi->local_configs[pi->T], pi->goal, pi->goal_distance_error_relax, shared_from_this()));
+      Vector4d coeffs;
+      if (goal_orientation_constraint) {
+        coeffs << 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
+      } else {
+        coeffs << 1., 0, 0, 0;
+      }
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "goal")));
     } else {
-      coeffs << 1., 1., 1., 0, 0, 0;
+      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[pi->T], pi->goal, shared_from_this()));
+      Vector6d coeffs; 
+      if (goal_orientation_constraint) {
+        coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
+      } else {
+        coeffs << 1., 1., 1., 0, 0, 0;
+      }
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "goal")));
     }
-    prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "goal")));
     pi->dynamics_constraints.push_back(prob.getConstraints().back());
   }
 
@@ -404,6 +420,7 @@ namespace Needle {
     vector<KinBodyPtr> bodies; env->GetBodies(bodies);
     CollisionChecker::GetOrCreate(*env)->SetContactDistance(collision_dist_pen + 0.05);
 
+
     for (int k = 0; k < n_needles; ++k) {
       for (int i=0; i < bodies.size(); ++i) {
         if (std::find(ignored_kinbody_names.begin(), ignored_kinbody_names.end(), bodies[i]->GetName()) != ignored_kinbody_names.end()) {
@@ -432,12 +449,13 @@ namespace Needle {
     this->continuous_collision = true;
     this->explicit_controls = true;
     this->control_constraints = true;
-    this->goal_orientation_constraint = true;
+    this->goal_orientation_constraint = false;
 
     // parameters for the optimizer
     this->improve_ratio_threshold = 0.1;
     this->trust_shrink_ratio = 0.9;
     this->trust_expand_ratio = 1.3;
+    this->trust_box_size = .1;
     this->record_trust_region_history = false;
     this->merit_error_coeff = 10;
     this->max_merit_coeff_increases = 10;
@@ -546,6 +564,9 @@ namespace Needle {
     if (this->Ts.front() > 1) {
       ret.push_back(pis.front()->GetSolutionWithoutFirstTimestep(sol.front()));
     }
+    //for (int i = 0; i < n_needles; ++i) {
+    //  pis[i]->PrintSolutionTrajectory(sol[i]);
+    //}
     for (int i = 1; i < n_needles; ++i) {
       ret.push_back(sol[i]);
     }

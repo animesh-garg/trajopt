@@ -11,6 +11,13 @@ namespace trajopt {
 
 typedef std::map<const OR::KinBody::Link*, int> Link2Int;
 
+struct TRAJOPT_API CollisionHash : OpenRAVE::UserData {
+  virtual size_t hash(const DblVec& x) = 0;
+  static boost::shared_ptr<CollisionHash> Get(OpenRAVE::EnvironmentBase& env);
+};
+
+typedef boost::shared_ptr<CollisionHash> CollisionHashPtr;
+
 struct TRAJOPT_API CollisionEvaluator {
   virtual void CalcDistExpressions(const DblVec& x, vector<AffExpr>& exprs) = 0;
   virtual void CalcDists(const DblVec& x, DblVec& exprs) = 0;
@@ -27,11 +34,15 @@ struct TRAJOPT_API CollisionEvaluator {
     const VarVector& vars00, const VarVector& vars01, const VarVector& vars10, const VarVector& vars11,
     const DblVec& vals00, const DblVec& vals01, const DblVec& vals10, const DblVec& vals11,
     vector<AffExpr>& exprs);
+  virtual size_t hash(const DblVec& x);
   virtual ~CollisionEvaluator() {}
   virtual VarVector GetVars()=0;
+  void SetCollisionHash(CollisionHashPtr cc_hash) { m_cc_hash = cc_hash; }
 
+  CollisionHashPtr m_cc_hash;
   Cache<size_t, vector<Collision>, 3> m_cache;
 };
+
 typedef boost::shared_ptr<CollisionEvaluator> CollisionEvaluatorPtr;
 
 struct TRAJOPT_API SingleTimestepCollisionEvaluator : public CollisionEvaluator {
@@ -122,7 +133,7 @@ public:
   /* constructor for cast cost */
   CollisionCost(double dist_pen, double coeff, ConfigurationPtr rad0, ConfigurationPtr rad1, const VarVector& vars0, const VarVector& vars1);
   /* constructor for cast self collision cost */
-  CollisionCost(double dist_pen, double coeff, ConfigurationPtr rad00, ConfigurationPtr rad01, ConfigurationPtr rad10, ConfigurationPtr rad11, const VarVector& vars00, const VarVector& vars01);
+  CollisionCost(double dist_pen, double coeff, ConfigurationPtr rad00, ConfigurationPtr rad01, ConfigurationPtr rad10, ConfigurationPtr rad11, const VarVector& vars00, const VarVector& vars01, const VarVector& vars10, const VarVector& vars11);
   virtual ConvexObjectivePtr convex(const vector<double>& x);
   virtual double value(const vector<double>&, Model*);
   void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
@@ -131,6 +142,23 @@ protected:
   double m_dist_pen;
   double m_coeff;
 };
+
+class TRAJOPT_API CollisionClearanceCost : public Cost {
+public:
+  CollisionClearanceCost(double coeff);
+  
+  /* constructor for cast cost */
+  CastCollisionClearanceCost(double coeff, const vector<ConfigurationPtr>&  rad0, ConfigurationPtr rad1, const VarVector& vars0, const VarVector& vars1);
+  /* constructor for cast self collision cost */
+  CastSelfCollisionClearanceCost(double coeff, ConfigurationPtr rad00, ConfigurationPtr rad01, ConfigurationPtr rad10, ConfigurationPtr rad11, const VarVector& vars00, const VarVector& vars01);
+
+  CollisionClearanceCost(double coeff);
+  virtual ConvexObjectivePtr convex(const vector<double>& x);
+  virtual double value(const vector<double>&, Model*);
+protected:
+  double m_coeff;
+};
+
 class TRAJOPT_API CollisionConstraint : public IneqConstraint {
 public:
   /* constructor for single timestep */

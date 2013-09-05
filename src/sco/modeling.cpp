@@ -51,8 +51,8 @@ void ConvexObjective::addL1Norm(const AffExprVector& ev) {
 void ConvexObjective::addL2Norm(const AffExprVector& ev) {
   for (size_t i=0; i < ev.size(); ++i) addQuadExpr(exprSquare(ev[i]));
 }
-void ConvexObjective::addMax(const AffExprVector& ev) { // this is probably buggy
-  objective_infos_.push_back(ObjectiveInfo(Objective_Max, ev));
+void ConvexObjective::addMax(const AffExprVector& ev, double coeff) { // this is probably buggy
+  objective_infos_.push_back(ObjectiveInfo(Objective_Max, ev, coeff));
 
   //Var m = model_->addVar("max", -INFINITY, INFINITY);
   //for (size_t i=0; i < ev.size(); ++i) {
@@ -122,6 +122,8 @@ void ConvexObjective::addToModelAndObjective(Model* model, AffExpr& objective, b
           ineqs.push_back(info.ev_[i]);
           exprDec(ineqs.back(), m);
         }
+        exprInc(objective, exprMult(AffExpr(m), info.coeff_));
+        exprInc(quad, exprMult(AffExpr(m), info.coeff_));
         break;
       }
       default: {

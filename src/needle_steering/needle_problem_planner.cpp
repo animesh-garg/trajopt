@@ -39,8 +39,10 @@ namespace Needle {
 
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
+    this->goal_distance_error_relax.push_back(0.0025);
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
+    this->goal_distance_error_relax.push_back(0.25);
 
     vector<double> start_position_error_relax_x;
     vector<double> start_position_error_relax_y;
@@ -62,6 +64,7 @@ namespace Needle {
     config.add(new Parameter< vector<double> >("start_position_error_relax_y", &start_position_error_relax_y, "start_position_error_relax_y"));
     config.add(new Parameter< vector<double> >("start_position_error_relax_z", &start_position_error_relax_z, "start_position_error_relax_z"));
     config.add(new Parameter< vector<double> >("start_orientation_error_relax", &this->start_orientation_error_relax, "start_orientation_error_relax"));
+    config.add(new Parameter< vector<double> >("goal_distance_error_relax", &this->goal_distance_error_relax, "goal_distance_error_relax"));
     config.add(new Parameter<int>("T", &T, "T"));
     CommandParser parser(config);
     parser.read(argc, argv, true);
@@ -137,6 +140,8 @@ namespace Needle {
                                                             start_position_error_relax_z[i]));
       }
     }
+
+    trajopt::SetUserData(*env, "trajopt_cc_hash", CollisionHashPtr(new NeedleCollisionHash(helper)));
   }
 
   vector<VectorXd> NeedleProblemPlanner::Solve(const vector<VectorXd>& initial) {
@@ -147,13 +152,18 @@ namespace Needle {
     helper->goals = this->goals;
     helper->start_position_error_relax = this->start_position_error_relax;
     helper->start_orientation_error_relax = this->start_orientation_error_relax;
+    helper->goal_distance_error_relax = this->goal_distance_error_relax;
     helper->Ts = this->Ts;
 
-    if (this->deviation > 0.01) {
+    if (helper->Ts.front() == 1) {
+      helper->trust_box_size = .01;//merit_error_coeff = 10000;
+      //helper->max_merit_coeff_increases -= 6;
+    }
+    /*} else */if (this->deviation > 0.01) {
       helper->merit_error_coeff = 10;
     } else {
-      cout << "small deviation" << endl;
       helper->merit_error_coeff = 100;
+      helper->max_merit_coeff_increases -= 2;
     }
 
     if (!this->is_first_needle_run) { // fix start position if not first run
@@ -167,12 +177,13 @@ namespace Needle {
     }
 
     OptProbPtr prob(new OptProb());
+    //prob.reset(new OptProb());
     helper->ConfigureProblem(*prob);
-    OptimizerT opt(prob);
+    OptimizerT opt(prob);//.reset(new OptimizerT(prob));
+    //OptimizerT opt(prob);
     helper->ConfigureOptimizer(opt);
 
     if (initial.size() == helper->n_needles) {
-      cout << "set solution initialization" << endl;
       helper->SetSolutions(initial, opt);
     }
 
@@ -192,48 +203,38 @@ namespace Needle {
 
   Vector6d NeedleProblemPlanner::PerturbState(const Vector6d& state) {
     Vector6d ret = state;
-    //for (int i = 0; i < 3; ++i) {
-    //  ret(i) += normal() * 0.005;
-    //}
-    //for (int i = 3; i < 6; ++i) {
-    //  ret(i) += normal() * 0.001;
-    //}
+    for (int i = 0; i < 3; ++i) {
+      ret(i) += normal() * 0.05;
+    }
+    for (int i = 3; i < 6; ++i) {
+      ret(i) += normal() * 0.025;
+    }
     return ret;
   }
 
-  vector<Vector6d> NeedleProblemPlanner::SimulateExecution(const vector<Vector6d>& current_states) {
-    vector<Vector6d> ret;
-    ret.clear();
-    //cout << "n needles: " << n_needles << endl;
-    for (int i = 0; i < (int) current_states.size() - n_needles; ++i) { // leave as it is
-      ret.push_back(current_states[i]);
-    }
+  void NeedleProblemPlanner::SimulateExecution() {
 
     double phi = helper->GetPhi(this->x, 0, helper->pis.front());
     double Delta = helper->GetDelta(this->x, 0, helper->pis.front());
     double curvature_or_radius = helper->GetCurvatureOrRadius(this->x, 0, helper->pis.front());
 
-    cout << "phi: " << phi << endl;
-    cout << "Delta: " << Delta << endl;
-    cout << "curvature_or_radius: " << curvature_or_radius << endl;
-    Vector6d state_to_change;
     if (this->is_first_needle_run) {
-      state_to_change = logDown(helper->pis.front()->local_configs.front()->pose);
-    } else {
-      state_to_change = current_states[current_states.size() - n_needles];
+      simulated_needle_trajectories.push_back(vector<Vector6d>());
+      simulated_needle_trajectories.back().push_back(logDown(helper->pis.front()->local_configs.front()->pose));
     }
+    Vector6d state_to_change = simulated_needle_trajectories.back().back();
 
     Vector6d new_state_without_noise = logDown(helper->TransformPose(expUp(state_to_change), phi, Delta, curvature_or_radius));
     Vector6d new_state = PerturbState(new_state_without_noise);
     this->deviation = (new_state_without_noise - new_state).norm();
+
+    //if (this->is_first_needle_run) {
+    //  simulated_needle_trajectories.push_back(vector<Vector6d>());
+    //}
+
+    simulated_needle_trajectories.back().push_back(new_state);
     
-    ret.push_back(new_state);
-
-    this->starts.front() = ret.back();
-
-    for (int i = current_states.size() - n_needles + 1, j = 0; i < current_states.size(); ++i, ++j) { // leave as it is
-      ret.push_back(current_states[i]);
-    }
+    this->starts.front() = new_state;
 
     if (Ts.front() > 1) {
       --Ts.front();
@@ -243,19 +244,14 @@ namespace Needle {
       this->Ts.erase(this->Ts.begin());
       this->starts.erase(this->starts.begin());
       this->goals.erase(this->goals.begin());
-      this->goals.erase(this->goals.begin());
       this->start_position_error_relax.erase(this->start_position_error_relax.begin());
       this->start_orientation_error_relax.erase(this->start_orientation_error_relax.begin());
+      this->goal_distance_error_relax.erase(this->goal_distance_error_relax.begin());
       this->is_first_needle_run = true;
+      this->AddSimulatedNeedleToBullet(this->simulated_needle_trajectories.back());
       --n_needles;
     }
 
-    cout << "new states: " << endl;
-    for (int i = 0; i < ret.size(); ++i) {
-      cout << se4Down(expUp(ret[i])).transpose() << endl;
-    }
-    
-    return ret;
   }
 
   vector<VectorXd> NeedleProblemPlanner::GetSolutionsWithoutFirstTimestep(const vector<VectorXd>& sol) {
@@ -272,5 +268,26 @@ namespace Needle {
 
   NeedleProblemPlanner::~NeedleProblemPlanner() {
     RaveDestroy();
+  }
+
+  void NeedleProblemPlanner::AddSimulatedNeedleToBullet(const vector<Vector6d>& states) {
+    KinBodyPtr robot = this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path);
+    this->managed_kinbodies.push_back(robot);
+    this->env->Add(robot, true);
+    boost::shared_ptr<BulletCollisionChecker> cc = boost::dynamic_pointer_cast<BulletCollisionChecker>(CollisionChecker::GetOrCreate(*this->env));
+
+    vector<LocalConfigurationPtr> local_configs;
+    for (int i = 0; i < states.size(); ++i) {
+      local_configs.push_back(LocalConfigurationPtr(new LocalConfiguration(robot)));
+      local_configs.back()->pose = expUp(states[i]);
+      this->managed_configs.push_back(local_configs.back());
+    }
+    for (int i = 0; i < (int) local_configs.size() - 1; ++i) {
+      vector<KinBody::LinkPtr> links;
+      vector<int> inds;
+      local_configs[i]->GetAffectedLinks(links, true, inds);
+      cc->AddCastHullShape(*local_configs[i], *local_configs[i+1], links, toDblVec(Vector6d::Zero()), toDblVec(Vector6d::Zero()));
+    }
+    this->env->Remove(robot);
   }
 }

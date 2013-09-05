@@ -155,19 +155,30 @@ void CollisionEvaluator::CollisionsToDistanceExpressions(const vector<Collision>
   
 }
 
+boost::shared_ptr<CollisionHash> CollisionHash::Get(OpenRAVE::EnvironmentBase& env) {
+  UserDataPtr ud = GetUserData(env, "trajopt_cc_hash");
+  return boost::dynamic_pointer_cast<CollisionHash>(ud);
+}
 
-inline size_t hash(const DblVec& x) {
-  return boost::hash_range(x.begin(), x.end());
+
+size_t CollisionEvaluator::hash(const DblVec& x) {
+  if (m_cc_hash) {
+    return m_cc_hash->hash(x);
+  } else {
+    return boost::hash_range(x.begin(), x.end());
+  }
 }
 
 void CollisionEvaluator::GetCollisionsCached(const DblVec& x, vector<Collision>& collisions) {
-  double key = hash(getDblVec(x, GetVars()));
+  double key = this->hash(getDblVec(x, GetVars()));
   vector<Collision>* it = m_cache.get(key);
-  if (it != NULL and false) {
+  if (it != NULL) {// and false) {
     LOG_DEBUG("using cached collision check\n");
+    //cout << "cached" << endl;
     collisions = *it;
   }
   else {
+    //cout << "not cached" << endl;
     LOG_DEBUG("not using cached collision check\n");
     CalcCollisions(x, collisions);
     m_cache.put(key, collisions);
@@ -182,6 +193,7 @@ SingleTimestepCollisionEvaluator::SingleTimestepCollisionEvaluator(Configuration
   m_link2ind(),
   m_links(),
   m_filterMask(-1) {
+  SetCollisionHash(CollisionHash::Get(*m_env));
   vector<KinBody::LinkPtr> links;
   vector<int> inds;
   rad->GetAffectedLinks(m_links, true, inds);
@@ -223,6 +235,8 @@ CastCollisionEvaluator::CastCollisionEvaluator(ConfigurationPtr rad0, Configurat
   m_vars1(vars1),
   m_link2ind(),
   m_links() {
+
+  SetCollisionHash(CollisionHash::Get(*m_env));
   vector<KinBody::LinkPtr> links;
   vector<int> inds;
   rad0->GetAffectedLinks(m_links, true, inds);
@@ -274,6 +288,7 @@ CastSelfCollisionEvaluator::CastSelfCollisionEvaluator(
   m_links0(),
   m_link2ind1(),
   m_links1() {
+  SetCollisionHash(CollisionHash::Get(*m_env));
   vector<KinBody::LinkPtr> links0;
   vector<int> inds0;
   rad00->GetAffectedLinks(m_links0, true, inds0);
@@ -411,13 +426,11 @@ ConvexConstraintsPtr CollisionConstraint::convex(const vector<double>& x) {
 }
 DblVec CollisionConstraint::value(const vector<double>& x, Model* model) {
   DblVec dists;
-  cout << "calculating for " << name() << endl;
   m_calc->CalcDists(x, dists);
   DblVec out(dists.size());
   for (int i=0; i < dists.size(); ++i) {
     out[i] = pospart(m_dist_pen - dists[i]) * m_coeff;
   }
-  cout << "result: " << toVectorXd(out).transpose() << endl;
   return out;
 }
 
