@@ -24,7 +24,8 @@ enum ObjectiveType {
   Objective_QuadExpr,
   Objective_Hinge, 
   Objective_Abs,
-  Objective_Max
+  Objective_Max,
+  Objective_Min
 };
 
 typedef map<Model*, vector<Var> > Model2Vars;

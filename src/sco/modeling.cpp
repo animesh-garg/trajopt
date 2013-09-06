@@ -15,32 +15,15 @@ namespace sco {
 
 void ConvexObjective::addAffExpr(const AffExpr& affexpr) {
   objective_infos_.push_back(ObjectiveInfo(Objective_AffExpr, affexpr));
-  //exprInc(quad_, affexpr);
 }
 void ConvexObjective::addQuadExpr(const QuadExpr& quadexpr) {
   objective_infos_.push_back(ObjectiveInfo(Objective_QuadExpr, quadexpr));
-  //exprInc(quad_, quadexpr);
 }
 void ConvexObjective::addHinge(const AffExpr& affexpr, double coeff) {
-  objective_infos_.push_back(ObjectiveInfo(Objective_Hinge, affexpr, coeff));//"hinge", 0, INFINITY
+  objective_infos_.push_back(ObjectiveInfo(Objective_Hinge, affexpr, coeff));
 }
 void ConvexObjective::addAbs(const AffExpr& affexpr, double coeff) {
   objective_infos_.push_back(ObjectiveInfo(Objective_Abs, affexpr, coeff));
-  //Var neg = model_->addVar("neg", 0, INFINITY);
-  //Var pos = model_->addVar("pos", 0, INFINITY);
-  //vars_.push_back(neg);
-  //vars_.push_back(pos);
-  //AffExpr neg_plus_pos;
-  //neg_plus_pos.coeffs = vector<double>(2, coeff);
-  //neg_plus_pos.vars.push_back(neg);
-  //neg_plus_pos.vars.push_back(pos);
-  //exprInc(quad_, neg_plus_pos);
-  //AffExpr affeq = affexpr;
-  //affeq.vars.push_back(neg);
-  //affeq.vars.push_back(pos);
-  //affeq.coeffs.push_back(1);
-  //affeq.coeffs.push_back(-1);
-  //eqs_.push_back(affeq);
 }
 void ConvexObjective::addHinges(const AffExprVector& ev) {
   for (size_t i=0; i < ev.size(); ++i) addHinge(ev[i],1);
@@ -51,14 +34,8 @@ void ConvexObjective::addL1Norm(const AffExprVector& ev) {
 void ConvexObjective::addL2Norm(const AffExprVector& ev) {
   for (size_t i=0; i < ev.size(); ++i) addQuadExpr(exprSquare(ev[i]));
 }
-void ConvexObjective::addMax(const AffExprVector& ev, double coeff) { // this is probably buggy
+void ConvexObjective::addMax(const AffExprVector& ev, double coeff) {
   objective_infos_.push_back(ObjectiveInfo(Objective_Max, ev, coeff));
-
-  //Var m = model_->addVar("max", -INFINITY, INFINITY);
-  //for (size_t i=0; i < ev.size(); ++i) {
-  //  ineqs_.push_back(ev[i]);
-  //  exprDec(ineqs_.back(), m);
-  //}
 }
 
 void ConvexObjective::addToModelAndObjective(Model* model, AffExpr& objective, bool permissive) {

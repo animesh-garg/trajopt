@@ -71,7 +71,7 @@ public:
   short m_filterMask;
 };
 
-struct CastCollisionEvaluator : public CollisionEvaluator {
+struct TRAJOPT_API CastCollisionEvaluator : public CollisionEvaluator {
 public:
   CastCollisionEvaluator(ConfigurationPtr rad0, ConfigurationPtr rad1, const VarVector& vars0, const VarVector& vars1);
   void CalcDistExpressions(const DblVec& x, vector<AffExpr>& exprs);
@@ -94,7 +94,7 @@ public:
 
 };
 
-struct CastSelfCollisionEvaluator : public CollisionEvaluator {
+struct TRAJOPT_API CastSelfCollisionEvaluator : public CollisionEvaluator {
 public:
   CastSelfCollisionEvaluator(
       ConfigurationPtr rad00, ConfigurationPtr rad01, ConfigurationPtr rad10, ConfigurationPtr rad11,
@@ -140,22 +140,6 @@ public:
 protected:
   CollisionEvaluatorPtr m_calc;
   double m_dist_pen;
-  double m_coeff;
-};
-
-class TRAJOPT_API CollisionClearanceCost : public Cost {
-public:
-  CollisionClearanceCost(double coeff);
-  
-  /* constructor for cast cost */
-  CastCollisionClearanceCost(double coeff, const vector<ConfigurationPtr>&  rad0, ConfigurationPtr rad1, const VarVector& vars0, const VarVector& vars1);
-  /* constructor for cast self collision cost */
-  CastSelfCollisionClearanceCost(double coeff, ConfigurationPtr rad00, ConfigurationPtr rad01, ConfigurationPtr rad10, ConfigurationPtr rad11, const VarVector& vars00, const VarVector& vars01);
-
-  CollisionClearanceCost(double coeff);
-  virtual ConvexObjectivePtr convex(const vector<double>& x);
-  virtual double value(const vector<double>&, Model*);
-protected:
   double m_coeff;
 };
 

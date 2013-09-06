@@ -1,4 +1,7 @@
-#include "needle_steering.hpp"
+#include "needle_problem_planner.hpp"
+#include "utils.hpp"
+#include "traj_plotter.hpp"
+#include "needle_collision_hash.hpp"
 
 namespace Needle {
 

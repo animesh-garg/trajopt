@@ -1,4 +1,7 @@
-#include "needle_steering.hpp"
+#include "needle_problem_helper.hpp"
+#include "utils.hpp"
+#include "costs.hpp"
+#include "constraints.hpp"
 
 namespace Needle {
   template<typename T, size_t N>
@@ -65,6 +68,7 @@ namespace Needle {
       this->pis.push_back(pi);
     }
 
+    AddCollisionClearanceCost(prob);
     for (int i = 0; i < n_needles; ++i) {
       for (int j = i+1; j < n_needles; ++j) {
         AddSelfCollisionConstraint(prob, pis[i], pis[j]);
@@ -415,6 +419,10 @@ namespace Needle {
     }
   }
 
+  void NeedleProblemHelper::AddCollisionClearanceCost(OptProb& prob) {
+    prob.addCost(CostPtr(new NeedleCollisionClearanceCost(shared_from_this(), this->collision_clearance_coeff))); 
+  }
+
   void NeedleProblemHelper::InitializeCollisionEnvironment() {
     EnvironmentBasePtr env = pis[0]->local_configs[0]->GetEnv();
     vector<KinBodyPtr> bodies; env->GetBodies(bodies);
@@ -466,6 +474,7 @@ namespace Needle {
     this->coeff_orientation_error = 1;
     this->collision_dist_pen = 0.05;
     this->collision_coeff = 10;
+    this->collision_clearance_coeff = 1;
 
     const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis" };
     this->ignored_kinbody_names = vector<string>(ignored_kinbody_c_strs, end(ignored_kinbody_c_strs));

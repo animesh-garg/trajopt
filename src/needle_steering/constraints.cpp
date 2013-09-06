@@ -1,5 +1,7 @@
-#include "needle_steering.hpp"
-#include <math.h>
+#include "constraints.hpp"
+#include "utils.hpp"
+#include "local_configuration.hpp"
+#include "needle_problem_helper.hpp"
 
 namespace Needle {
 

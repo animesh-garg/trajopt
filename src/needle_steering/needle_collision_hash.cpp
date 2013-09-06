@@ -1,4 +1,6 @@
-#include "needle_steering.hpp"
+#include "needle_collision_hash.hpp"
+#include "utils.hpp"
+#include "needle_problem_helper.hpp"
 
 namespace Needle {
   NeedleCollisionHash::NeedleCollisionHash(NeedleProblemHelperPtr helper) : helper(helper) {}
