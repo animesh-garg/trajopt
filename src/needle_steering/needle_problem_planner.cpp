@@ -26,8 +26,8 @@ namespace Needle {
     argv(argv),
     helper(new NeedleProblemHelper()),
     stage_plotting(false),
+    stage_result_plotting(false),
     verbose(false),
-    plot_final_result(false),
     env_transparency(0.1),
     is_first_needle_run(true),
     deviation(INFINITY),
@@ -42,7 +42,7 @@ namespace Needle {
 
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
-    this->goal_distance_error_relax.push_back(0.0025);
+    this->goal_distance_error_relax.push_back(0.25);
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
     this->goal_distance_error_relax.push_back(0.25);
@@ -55,7 +55,7 @@ namespace Needle {
     
     Config config;
     config.add(new Parameter<bool>("stage_plotting", &this->stage_plotting, "stage_plotting"));
-    config.add(new Parameter<bool>("plot_final_result", &this->plot_final_result, "plot_final_result"));
+    config.add(new Parameter<bool>("stage_result_plotting", &this->stage_result_plotting, "stage_result_plotting"));
     config.add(new Parameter<bool>("verbose", &this->verbose, "verbose"));
     config.add(new Parameter<double>("env_transparency", &this->env_transparency, "env_transparency"));
     config.add(new Parameter<string>("data_dir", &this->data_dir, "data_dir"));
@@ -92,14 +92,14 @@ namespace Needle {
     this->env->StopSimulation();
 
     OSGViewerPtr viewer;
-    if (this->stage_plotting || this->plot_final_result) {
+    if (this->stage_plotting || this->stage_result_plotting ) {
       viewer = OSGViewer::GetOrCreate(env);
       assert(viewer);
     }
 
     this->env->Load(this->env_file_path);
 
-    if (this->stage_plotting || this->plot_final_result) {
+    if (this->stage_plotting || this->stage_result_plotting ) {
       viewer->SetAllTransparency(this->env_transparency);
     }
 
@@ -114,17 +114,8 @@ namespace Needle {
       strtk::parse(start_string_vec[i], ",", start_vec);
       strtk::parse(goal_string_vec[i], ",", goal_vec);
       Vector6d start = toVectorXd(start_vec), goal = toVectorXd(goal_vec);
-      //Matrix4d start_pose, goal_pose;
-      //start_pose.topLeftCorner<3, 3>() = rotMat(start.tail<3>());
-      //start_pose.topRightCorner<3, 1>() = start.head<3>();
-      //start_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
-      //start_pose(3, 3) = 1;
-      //goal_pose.topLeftCorner<3, 3>() = rotMat(goal.tail<3>());
-      //goal_pose.topRightCorner<3, 1>() = goal.head<3>();
-      //goal_pose.bottomLeftCorner<1, 3>() = Vector3d::Zero();
-      //goal_pose(3, 3) = 1;
-      starts.push_back(logDown(se4Up(start)));//start_pose));
-      goals.push_back(logDown(se4Up(goal)));//goal_pose));
+      starts.push_back(logDown(se4Up(start)));
+      goals.push_back(logDown(se4Up(goal)));
     }
 
     for (int i = 0; i < n_needles; ++i) {
@@ -159,10 +150,9 @@ namespace Needle {
     helper->Ts = this->Ts;
 
     if (helper->Ts.front() == 1) {
-      helper->trust_box_size = .01;//merit_error_coeff = 10000;
-      //helper->max_merit_coeff_increases -= 6;
+      helper->trust_box_size = .01;
     }
-    /*} else */if (this->deviation > 0.01) {
+    if (this->deviation > 0.01) {
       helper->merit_error_coeff = 10;
     } else {
       helper->merit_error_coeff = 100;
@@ -180,17 +170,19 @@ namespace Needle {
     }
 
     OptProbPtr prob(new OptProb());
-    //prob.reset(new OptProb());
     helper->ConfigureProblem(*prob);
-    OptimizerT opt(prob);//.reset(new OptimizerT(prob));
-    //OptimizerT opt(prob);
+    OptimizerT opt(prob);
     helper->ConfigureOptimizer(opt);
 
     if (initial.size() == helper->n_needles) {
       helper->SetSolutions(initial, opt);
     }
 
-    if (this->stage_plotting || this->plot_final_result) {
+    if (!this->is_first_needle_run) {
+      helper->IntegrateControls(opt.x());
+    }
+
+    if (this->stage_plotting || this->stage_result_plotting) {
       this->plotter.reset(new Needle::TrajPlotter());
     }
     if (this->stage_plotting) {
@@ -200,12 +192,16 @@ namespace Needle {
     opt.optimize();
 
     this->x = opt.x();
+
+    if (this->stage_result_plotting) {
+      this->plotter->OptimizerCallback(prob.get(), this->x, this->helper);
+    }
     
     return helper->GetSolutions(opt);
   }
 
   Vector6d NeedleProblemPlanner::PerturbState(const Vector6d& state) {
-    Vector6d ret = state;
+    Vector6d ret = state;//se4Down(expUp(state));
     for (int i = 0; i < 3; ++i) {
       ret(i) += normal() * 0.05;
     }
@@ -213,6 +209,13 @@ namespace Needle {
       ret(i) += normal() * 0.025;
     }
     return ret;
+    //cout << "transformed matrix: " << endl << se4Up(se4Down(expUp(state))) << endl;
+    //cout << "transformed matrix should be: " << endl << expUp(state) << endl;
+    //cout << "transformed 2: " << se4Down(se4Up(state)).transpose() << endl;
+    //cout << "transformed 1: " << logDown(expUp(state)).transpose() << endl;
+    //cout << "transformed: " << logDown(se4Up(se4Down(expUp(state)))).transpose() << endl;
+    //cout << "original: " << state.transpose() << endl;
+    //return logDown(se4Up(ret));
   }
 
   void NeedleProblemPlanner::SimulateExecution() {
@@ -231,19 +234,26 @@ namespace Needle {
     Vector6d new_state = PerturbState(new_state_without_noise);
     this->deviation = (new_state_without_noise - new_state).norm();
 
-    //if (this->is_first_needle_run) {
-    //  simulated_needle_trajectories.push_back(vector<Vector6d>());
-    //}
-
     simulated_needle_trajectories.back().push_back(new_state);
     
     this->starts.front() = new_state;
+
+    TrajArray traj(2, 6); traj.row(0) = state_to_change; traj.row(1) = new_state;
+    vector<ConfigurationPtr> rads; rads.push_back(helper->pis.front()->local_configs[0]); rads.push_back(helper->pis.front()->local_configs[1]); 
+    vector<Collision> collisions;
+
+    CollisionChecker::GetOrCreate(*this->env)->ContinuousCheckTrajectory(traj, rads, collisions);
+    BOOST_FOREACH(const Collision& collision, collisions) {
+      cout << "distance: " << collision.distance << endl;
+    }
+    //boost::shared_ptr<BulletCollisionChecker> cc = boost::dynamic_pointer_cast<BulletCollisionChecker>();
+    //cc->ContinuousCheckShape(
 
     if (Ts.front() > 1) {
       --Ts.front();
       this->is_first_needle_run = false;
     } else {
-      // get rid of first time step
+      // get rid of first needle
       this->Ts.erase(this->Ts.begin());
       this->starts.erase(this->starts.begin());
       this->goals.erase(this->goals.begin());

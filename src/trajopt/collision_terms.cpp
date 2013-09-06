@@ -174,7 +174,6 @@ void CollisionEvaluator::GetCollisionsCached(const DblVec& x, vector<Collision>&
   vector<Collision>* it = m_cache.get(key);
   if (it != NULL) {// and false) {
     LOG_DEBUG("using cached collision check\n");
-    //cout << "cached" << endl;
     collisions = *it;
   }
   else {

@@ -13,7 +13,7 @@ namespace Needle {
     NeedleProblemHelperPtr helper;
 
     bool stage_plotting;
-    bool plot_final_result;
+    bool stage_result_plotting;
     bool verbose;
     bool is_first_needle_run;
     double env_transparency;

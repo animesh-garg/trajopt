@@ -38,6 +38,7 @@ namespace Needle {
     int rotation_cost;
     bool use_speed_deviation_constraint;
     bool use_speed_deviation_cost;
+    bool use_collision_clearance_cost;
     bool verbose;
     bool explicit_controls;
     bool continuous_collision;
@@ -84,7 +85,6 @@ namespace Needle {
     void AddCollisionConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddSelfCollisionConstraint(OptProb& prob, NeedleProblemInstancePtr piA, NeedleProblemInstancePtr piB);
     void AddCollisionClearanceCost(OptProb& prob);
-    //void AddCollisionCost(OptProb& prob, NeedleProblemInstancePtr pi);
     void InitializeCollisionEnvironment();
 
     Matrix4d TransformPose(const Matrix4d& pose, double phi, double Delta, double radius) const;
@@ -96,6 +96,7 @@ namespace Needle {
 
     vector<VectorXd> GetSolutions(OptimizerT& opt);
     void SetSolutions(const vector<VectorXd>& sol, OptimizerT& opt);
+    void IntegrateControls(DblVec& x);
 
     void AddNeedlesToBullet(OptimizerT& prob);
     void AddNeedleToBullet(NeedleProblemInstancePtr pi, OptimizerT& prob);

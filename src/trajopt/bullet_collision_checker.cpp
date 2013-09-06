@@ -645,14 +645,14 @@ void BulletCollisionChecker::ContinuousCheckShape(btCollisionShape* shape, const
 }
 
 
-void BulletCollisionChecker::ContinuousCheckTrajectory(const TrajArray& traj, Configuration& rad, vector<Collision>& collisions) {
+void BulletCollisionChecker::ContinuousCheckTrajectory(const TrajArray& traj, vector<ConfigurationPtr>& rads, vector<Collision>& collisions) {
   UpdateBulletFromRave();
   m_world->updateAabbs();
 
   // first calculate transforms of all the relevant links at each step
   vector<KinBody::LinkPtr> links;
   vector<int> link_inds;
-  rad.GetAffectedLinks(links, true, link_inds);
+  rads.front()->GetAffectedLinks(links, true, link_inds);
 
 
   // don't need to remove them anymore because now I only check collisions
@@ -671,10 +671,10 @@ void BulletCollisionChecker::ContinuousCheckTrajectory(const TrajArray& traj, Co
 
   typedef vector<btTransform> TransformVec;
   vector<TransformVec> link2transforms(links.size(), TransformVec(traj.rows()));
-  Configuration::SaverPtr save = rad.Save();
+  Configuration::SaverPtr save = rads.front()->Save();
 
   for (int iStep=0; iStep < traj.rows(); ++iStep) {
-    rad.SetDOFValues(toDblVec(traj.row(iStep)));
+    rads[iStep]->SetDOFValues(toDblVec(traj.row(iStep)));
     for (int iLink = 0; iLink < links.size(); ++iLink) {
       link2transforms[iLink][iStep] = toBt(links[iLink]->GetTransform());
     }

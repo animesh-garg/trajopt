@@ -68,11 +68,14 @@ namespace Needle {
       this->pis.push_back(pi);
     }
 
-    AddCollisionClearanceCost(prob);
     for (int i = 0; i < n_needles; ++i) {
       for (int j = i+1; j < n_needles; ++j) {
         AddSelfCollisionConstraint(prob, pis[i], pis[j]);
       }
+    }
+
+    if (this->use_collision_clearance_cost) {
+      AddCollisionClearanceCost(prob);
     }
 
     InitializeCollisionEnvironment();
@@ -256,15 +259,11 @@ namespace Needle {
         break;
       case VariableSpeed: {
         double deviate_from = (pi->goal.topRows(3) - pi->start.topRows(3)).norm() / pi->T * 0.5;
-        //AddVarArray(prob, T, 1, Delta_lb * 0.5, INFINITY, "speed", Deltavars); // TODO should we have a resonable upper bound for this?
-        AddVarArray(prob, pi->T, 1, deviate_from, INFINITY, "speed", pi->Deltavars); // TODO should we have a resonable upper bound for this?
-        //AddVarArray(prob, T, 1, Delta_lb*2, INFINITY, "speed", Deltavars); // TODO should we have a resonable upper bound for this?
+        AddVarArray(prob, pi->T, 1, deviate_from, INFINITY, "speed", pi->Deltavars);
         break;
       }
       SWITCH_DEFAULT;
     }
-    // Only the twist variables are incremental (i.e. their trust regions should be around zero)
-    //prob.setIncremental(twistvars.flatten());
     if (curvature_constraint == BoundedRadius) {
       switch (curvature_formulation) {
         case UseCurvature:
@@ -426,7 +425,11 @@ namespace Needle {
   void NeedleProblemHelper::InitializeCollisionEnvironment() {
     EnvironmentBasePtr env = pis[0]->local_configs[0]->GetEnv();
     vector<KinBodyPtr> bodies; env->GetBodies(bodies);
-    CollisionChecker::GetOrCreate(*env)->SetContactDistance(collision_dist_pen + 0.05);
+    double contact_distance = collision_dist_pen + 0.05;
+    if (this->use_collision_clearance_cost) {
+      contact_distance = fmax(contact_distance, collision_clearance_threshold);
+    }
+    CollisionChecker::GetOrCreate(*env)->SetContactDistance(contact_distance);
 
 
     for (int k = 0; k < n_needles; ++k) {
@@ -443,7 +446,7 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::InitParameters() {
-    this->r_min = 2.98119536;
+    this->r_min = 5;
     this->n_dof = 6;
 
     this->formulation = NeedleProblemHelper::Form1;
@@ -458,6 +461,7 @@ namespace Needle {
     this->explicit_controls = true;
     this->control_constraints = true;
     this->goal_orientation_constraint = false;
+    this->use_collision_clearance_cost = true;
 
     // parameters for the optimizer
     this->improve_ratio_threshold = 0.1;
@@ -486,7 +490,6 @@ namespace Needle {
     InitParameters();
     
     Config config;
-    //config.add(new Parameter<int>("T", &this->T, "T"));
     config.add(new Parameter<int>("formulation", &this->formulation, "formulation"));
     config.add(new Parameter<int>("curvature_constraint", &this->curvature_constraint, "curvature_constraint"));
     config.add(new Parameter<int>("method", &this->method, "method"));
@@ -508,6 +511,7 @@ namespace Needle {
     config.add(new Parameter<double>("merit_error_coeff", &this->merit_error_coeff, "merit_error_coeff"));
     config.add(new Parameter<bool>("use_speed_deviation_constraint", &this->use_speed_deviation_constraint, "use_speed_deviation_constraint"));
     config.add(new Parameter<bool>("use_speed_deviation_cost", &this->use_speed_deviation_cost, "use_speed_deviation_cost"));
+    config.add(new Parameter<bool>("use_collision_clearance_cost", &this->use_collision_clearance_cost, "use_collision_clearance_cost"));
     config.add(new Parameter<bool>("record_trust_region_history", &this->record_trust_region_history, "record_trust_region_history"));
     config.add(new Parameter<bool>("explicit_controls", &this->explicit_controls, "explicit_controls"));
     config.add(new Parameter<bool>("continuous_collision", &this->continuous_collision, "continuous_collision"));
@@ -584,5 +588,22 @@ namespace Needle {
       ret.push_back(sol[i]);
     }
     return ret;
+  }
+
+  void NeedleProblemHelper::IntegrateControls(DblVec& x) {
+    for (int i = 0; i < n_needles; ++i) {
+      cout << "needle No. " << i << endl;
+      if (i == 0) {
+        pis[i]->local_configs[0]->pose = expUp(pis[i]->start);
+      }
+      for (int j = 0; j < pis[i]->T; ++j) {
+        double phi = GetPhi(x, j, pis[i]);
+        double Delta = GetDelta(x, j, pis[i]);
+        double curvature_or_radius = GetCurvatureOrRadius(x, j, pis[i]);
+        cout << "phi: " << phi << "; Delta: " << Delta << "; currad: " << curvature_or_radius << endl;
+        pis[i]->local_configs[j+1]->pose = TransformPose(pis[i]->local_configs[j]->pose, phi, Delta, curvature_or_radius);
+      }
+      setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
+    }
   }
 }

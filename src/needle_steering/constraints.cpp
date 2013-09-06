@@ -39,6 +39,10 @@ namespace Needle {
   VectorXd ExactPositionError::operator()(const VectorXd& a) const {
     assert(a.size() == 6);
     Matrix4d current_pose = cfg->pose * expUp(a);
+    cout << "poses: " << endl;
+    cout << current_pose << endl;
+    cout << target_pose << endl;
+    cout << "error vector: " << logDown(current_pose.inverse() * target_pose).transpose() << endl;
     return logDown(current_pose.inverse() * target_pose);
   }
 

@@ -154,6 +154,7 @@ public:
   virtual ConvexConstraintsPtr convex(const vector<double>& x);
   virtual DblVec value(const vector<double>&, Model*);
   void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
+  CollisionEvaluatorPtr calc() { return m_calc; }
 protected:
   CollisionEvaluatorPtr m_calc;
   double m_dist_pen;
