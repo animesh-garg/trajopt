@@ -49,6 +49,7 @@ namespace Needle {
     double collision_dist_pen;
     double collision_coeff;
     double collision_clearance_coeff;
+    double collision_clearance_threshold;
     vector<KinBodyPtr> robots;
 
     vector<NeedleProblemInstancePtr> pis;

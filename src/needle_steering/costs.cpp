@@ -121,7 +121,7 @@ namespace Needle {
     vector<AffExpr> exprs;
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
     double old_contact_distance = CollisionChecker::GetOrCreate(*env)->GetContactDistance();
-    CollisionChecker::GetOrCreate(*env)->SetContactDistance(INFINITY);
+    CollisionChecker::GetOrCreate(*env)->SetContactDistance(helper->collision_clearance_threshold);
     BOOST_FOREACH(const CollisionEvaluatorPtr& cc, this->ccs) {
       vector<AffExpr> tmp_exprs;
       cc->CalcDistExpressions(x, tmp_exprs);
@@ -130,10 +130,14 @@ namespace Needle {
       }
     }
     CollisionChecker::GetOrCreate(*env)->SetContactDistance(old_contact_distance);
-    if (exprs.size() == 0) {
-      throw std::runtime_error("should always have at least one result.");
+    //if (exprs.size() == 0) {
+    //  throw std::runtime_error("should always have at least one result.");
+    //}
+    if (exprs.size() > 0) {
+      out->addMax(exprs, this->coeff);
+    } else {
+      out->addAffExpr(AffExpr(-helper->collision_clearance_threshold * this->coeff));
     }
-    out->addMax(exprs, this->coeff);
     return out;
   }
 
@@ -141,7 +145,7 @@ namespace Needle {
     DblVec dists;
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
     double old_contact_distance = CollisionChecker::GetOrCreate(*env)->GetContactDistance();
-    CollisionChecker::GetOrCreate(*env)->SetContactDistance(INFINITY);
+    CollisionChecker::GetOrCreate(*env)->SetContactDistance(helper->collision_clearance_threshold);
     BOOST_FOREACH(const CollisionEvaluatorPtr& cc, this->ccs) {
       DblVec tmp_dists;
       cc->CalcDists(x, tmp_dists);
@@ -150,9 +154,10 @@ namespace Needle {
       }
     }
     CollisionChecker::GetOrCreate(*env)->SetContactDistance(old_contact_distance);
-    if (dists.size() == 0) {
-      throw std::runtime_error("should always have at least one result.");
+    if (dists.size() > 0) {
+      return vecMax(dists) * this->coeff;
+    } else {
+      return - helper->collision_clearance_threshold * this->coeff;
     }
-    return vecMax(dists) * this->coeff;
   }
 }

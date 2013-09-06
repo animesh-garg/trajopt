@@ -10,10 +10,12 @@ int main(int argc, char** argv) {
   vector< vector<Vector6d> > states;
   states.push_back(planner->starts);
   bool sim_plotting = false;
+  bool first_run_only = false;
 
   {
     Config config;
     config.add(new Parameter<bool>("sim_plotting", &sim_plotting, "sim_plotting"));
+    config.add(new Parameter<bool>("first_run_only", &first_run_only, "first_run_only"));
     CommandParser parser(config);
     parser.read(argc, argv, true);
   }
@@ -25,8 +27,10 @@ int main(int argc, char** argv) {
   }
 
   while (!planner->Finished()) {
-    sol = planner->GetSolutionsWithoutFirstTimestep(planner->Solve(sol));
+    sol = planner->Solve(sol);
+    if (first_run_only) break;
     planner->SimulateExecution();
+    sol = planner->GetSolutionsWithoutFirstTimestep(sol);
     if (sim_plotting) {
       sim_plotter->Plot(planner);
     }
