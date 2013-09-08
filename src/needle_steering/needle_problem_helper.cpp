@@ -89,7 +89,7 @@ namespace Needle {
       VarVector vars = pi->twistvars.row(i);
       VectorOfVectorPtr f(new Needle::ChannelSurfaceDistance(pi->local_configs[i], shared_from_this()));
       VectorXd coeffs(1); coeffs << 1.;
-      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "channel_surface_distance")));
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "channel_surface_distance_collision")));
       pi->collision_constraints.push_back(prob.getConstraints().back());
     }
   }
@@ -558,6 +558,9 @@ namespace Needle {
     }
     robots.clear();
     self_collision_constraints.clear();
+    start_position_error_relax.clear();
+    start_orientation_error_relax.clear();
+    goal_distance_error_relax.clear();
     pis.clear();
     n_needles = 0;
   }

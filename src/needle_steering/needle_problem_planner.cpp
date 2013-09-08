@@ -154,6 +154,50 @@ namespace Needle {
 
   vector<VectorXd> NeedleProblemPlanner::Solve(const vector<VectorXd>& initial) {
     trajopt::SetUserData(*this->env, "trajopt_cc", OpenRAVE::UserDataPtr());
+    vector<KinBodyPtr> robots;
+    vector<VectorXd> sol;
+    for (int i = 0; i < n_needles; ++i) {
+
+      helper->InitParametersFromConsole(this->argc, this->argv);
+      helper->n_needles = 1;
+      helper->starts.push_back(this->starts[i]);
+      helper->goals.push_back(this->goals[i]);
+      helper->start_position_error_relax.push_back(this->start_position_error_relax[i]);
+      helper->start_orientation_error_relax.push_back(this->start_orientation_error_relax[i]);
+      helper->goal_distance_error_relax.push_back(this->goal_distance_error_relax[i]);
+      helper->Ts.push_back(this->Ts[i]);
+      helper->robots.push_back(this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path));
+      this->env->Add(helper->robots.back(), true);
+      if (!this->is_first_needle_run && i == 0) { // fix start position if not first run
+        helper->start_position_error_relax.front() = Vector3d::Zero();
+        helper->start_orientation_error_relax.front() = 0;
+      }
+
+      OptProbPtr prob(new OptProb());
+      helper->ConfigureProblem(*prob);
+      OptimizerT opt(prob);
+      helper->ConfigureOptimizer(opt);
+      if (initial.size() == helper->n_needles) {
+        vector<VectorXd> subinitial;
+        subinitial.push_back(initial[i]);
+        helper->SetSolutions(subinitial, opt);
+      }
+      if (!this->is_first_needle_run && i == 0) {
+        helper->IntegrateControls(opt.x());
+      }
+      if (this->stage_plotting || this->stage_result_plotting) {
+        this->plotter.reset(new Needle::TrajPlotter());
+      }
+      if (this->stage_plotting) {
+        opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper));
+      }
+      opt.optimize();
+      for (int j = 0; j < helper->robots.size(); ++j) {
+        robots.push_back(helper->robots[j]);
+      }
+      sol.push_back(helper->GetSolutions(opt).front());
+    }
+    trajopt::SetUserData(*env, "trajopt_cc", OpenRAVE::UserDataPtr());
     helper->InitParametersFromConsole(this->argc, this->argv);
     helper->n_needles = this->n_needles;
     helper->starts = this->starts;
@@ -188,13 +232,14 @@ namespace Needle {
     OptimizerT opt(prob);
     helper->ConfigureOptimizer(opt);
 
-    if (initial.size() == helper->n_needles) {
-      helper->SetSolutions(initial, opt);
-    }
+    helper->SetSolutions(sol, opt);
+    //if (initial.size() == helper->n_needles) {
+    //  helper->SetSolutions(initial, opt);
+    //}
 
-    if (!this->is_first_needle_run) {
-      helper->IntegrateControls(opt.x());
-    }
+    //if (!this->is_first_needle_run) {
+    //  helper->IntegrateControls(opt.x());
+    //}
 
     if (this->stage_plotting || this->stage_result_plotting) {
       this->plotter.reset(new Needle::TrajPlotter());
