@@ -558,6 +558,9 @@ namespace Needle {
     }
     robots.clear();
     self_collision_constraints.clear();
+    start_position_error_relax.clear();
+    start_orientation_error_relax.clear();
+    goal_distance_error_relax.clear();
     pis.clear();
     n_needles = 0;
   }
