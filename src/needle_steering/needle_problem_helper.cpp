@@ -89,7 +89,7 @@ namespace Needle {
       VarVector vars = pi->twistvars.row(i);
       VectorOfVectorPtr f(new Needle::ChannelSurfaceDistance(pi->local_configs[i], shared_from_this()));
       VectorXd coeffs(1); coeffs << 1.;
-      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "channel_surface_distance")));
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, (boost::format("channel_surface_distance_collision_%i")%i).str())));
       pi->collision_constraints.push_back(prob.getConstraints().back());
     }
   }

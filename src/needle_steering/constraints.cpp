@@ -175,7 +175,7 @@ namespace Needle {
     double x = position.x(), y = position.y(), z = position.z();
     double distance = 0;
     if (z <= helper->channel_height) {
-      distance = fmin(helper->channel_radius - sqrt(x*x + y*y), z);
+      distance = fmin(helper->channel_radius - sqrt(x*x + y*y), z - 0.2);
     } else {
       distance = helper->channel_radius - sqrt(x*x + y*y + (z-helper->channel_height)*(z-helper->channel_height));
     }
