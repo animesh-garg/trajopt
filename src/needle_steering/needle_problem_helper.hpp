@@ -51,6 +51,10 @@ namespace Needle {
     double collision_coeff;
     double collision_clearance_coeff;
     double collision_clearance_threshold;
+
+    double channel_radius;
+    double channel_height;
+    double channel_safety_margin;
     vector<KinBodyPtr> robots;
 
     vector<NeedleProblemInstancePtr> pis;
@@ -80,6 +84,7 @@ namespace Needle {
     void AddSpeedConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
+    void AddChannelConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddControlConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddPoseConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddCollisionConstraint(OptProb& prob, NeedleProblemInstancePtr pi);

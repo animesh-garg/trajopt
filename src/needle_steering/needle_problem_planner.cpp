@@ -35,17 +35,31 @@ namespace Needle {
 
     vector<string> start_string_vec;
     vector<string> goal_string_vec;
-    start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
-    goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,0.78,0");
-    start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
-    goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,0.78,0");
+    //start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
+    //goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,0.78,0");
+    //start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
+    //goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,0.78,0");
 
+    start_string_vec.push_back("0,0,0,0,0,0");
+    goal_string_vec.push_back("-0.875,0.0,7,-1.5707963267948966,-0.0,-0.0");
+    start_string_vec.push_back("0,0,0,0,0,0");
+    goal_string_vec.push_back("0.875,0.0,7,1.5707963267948966,0.0,0.0");
+
+    #ifdef CHANNEL
+    this->start_position_error_relax.push_back(Vector3d(1.75, 1.75, 0.05));
+    this->start_orientation_error_relax.push_back(0.1745);
+    this->goal_distance_error_relax.push_back(0);
+    this->start_position_error_relax.push_back(Vector3d(1.75, 1.75, 0.05));
+    this->start_orientation_error_relax.push_back(0.1745);
+    this->goal_distance_error_relax.push_back(0);
+    #else
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
     this->goal_distance_error_relax.push_back(0.25);
     this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
     this->start_orientation_error_relax.push_back(0.0873);
     this->goal_distance_error_relax.push_back(0.25);
+    #endif
 
     vector<double> start_position_error_relax_x;
     vector<double> start_position_error_relax_y;

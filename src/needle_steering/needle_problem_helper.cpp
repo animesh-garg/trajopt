@@ -57,6 +57,9 @@ namespace Needle {
       AddStartConstraint(prob, pi);
       AddGoalConstraint(prob, pi);
       AddSpeedConstraint(prob, pi);
+      #ifdef CHANNEL
+      AddChannelConstraint(prob, pi);
+      #endif
       if (control_constraints) {
         if (this->explicit_controls) {
           AddControlConstraint(prob, pi);
@@ -79,6 +82,16 @@ namespace Needle {
     }
 
     InitializeCollisionEnvironment();
+  }
+
+  void NeedleProblemHelper::AddChannelConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
+    for (int i = 0; i < pi->local_configs.size(); ++i) {
+      VarVector vars = pi->twistvars.row(i);
+      VectorOfVectorPtr f(new Needle::ChannelSurfaceDistance(pi->local_configs[i], shared_from_this()));
+      VectorXd coeffs(1); coeffs << 1.;
+      prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, "channel_surface_distance")));
+      pi->collision_constraints.push_back(prob.getConstraints().back());
+    }
   }
 
   void NeedleProblemHelper::InitOptimizeVariables(OptimizerT& opt) {
@@ -296,8 +309,13 @@ namespace Needle {
   void NeedleProblemHelper::AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(0);
     if (pi->start_position_error_relax.norm() > 1e-4 || pi->start_orientation_error_relax > 1e-4) {
-      VectorOfVectorPtr f(new Needle::InsertionRegionPositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+      #ifdef CHANNEL
+      VectorOfVectorPtr f(new Needle::CirclePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+      Vector3d coeffs; coeffs << 1., 1., this->coeff_orientation_error;
+      #else
+      VectorOfVectorPtr f(new Needle::SquarePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
       Vector4d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error;
+      #endif
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
     } else {
@@ -480,6 +498,10 @@ namespace Needle {
     this->collision_coeff = 10;
     this->collision_clearance_coeff = 1;
     this->collision_clearance_threshold = 1;
+
+    this->channel_radius = 1.75;
+    this->channel_height = 7;
+    this->channel_safety_margin = 0.25;
 
     const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis" };
     this->ignored_kinbody_names = vector<string>(ignored_kinbody_c_strs, end(ignored_kinbody_c_strs));

@@ -5,7 +5,9 @@
 
 namespace Needle {
 
-  InsertionRegionPositionError::InsertionRegionPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
+  SquarePositionError::SquarePositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
+
+  CirclePositionError::CirclePositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, const Vector3d& position_error_relax, double orientation_error_relax, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), position_error_relax(position_error_relax), orientation_error_relax(orientation_error_relax), body(cfg->GetBodies()[0]), helper(helper) {}
 
   ExactPositionError::ExactPositionError(LocalConfigurationPtr cfg, const Vector6d& target_pos, NeedleProblemHelperPtr helper) : cfg(cfg), target_pose(expUp(target_pos)), body(cfg->GetBodies()[0]), helper(helper) {}
 
@@ -19,7 +21,7 @@ namespace Needle {
     }
   }
 
-  VectorXd InsertionRegionPositionError::operator()(const VectorXd& a) const {
+  VectorXd SquarePositionError::operator()(const VectorXd& a) const {
     assert(a.size() == 6);
     
     Matrix4d current_pose = cfg->pose * expUp(a);
@@ -33,6 +35,22 @@ namespace Needle {
     Vector4d err;
     err.head<3>() = position_error;
     err(3) = orientation_error;
+    return err;
+  }
+
+  VectorXd CirclePositionError::operator()(const VectorXd& a) const {
+    assert(a.size() == 6);
+    
+    Matrix4d current_pose = cfg->pose * expUp(a);
+    Vector3d current_rot = rotVec(current_pose.topLeftCorner<3, 3>());
+    Vector3d target_rot = rotVec(target_pose.topLeftCorner<3, 3>());
+
+    double orientation_error = fmax(cosangle(current_rot, target_rot) - cos(this->orientation_error_relax), 0);
+    double position_error = (current_pose.block<2, 1>(0, 3) - target_pose.block<2, 1>(0, 3)).norm();
+    position_error = fmax(position_error - this->position_error_relax(0) + 0.2, 0);
+    double height_error = fmax(fabs(current_pose(2, 3) - target_pose(2, 3)) - this->position_error_relax(2), 0);
+
+    Vector3d err; err << position_error, height_error, orientation_error;
     return err;
   }
 
@@ -147,6 +165,22 @@ namespace Needle {
         return 6;
       SWITCH_DEFAULT;
     }
+  }
+
+  ChannelSurfaceDistance::ChannelSurfaceDistance(LocalConfigurationPtr cfg, NeedleProblemHelperPtr helper) : cfg(cfg), helper(helper) {} 
+
+  VectorXd ChannelSurfaceDistance::operator()(const VectorXd& a) const {
+    Matrix4d current_pose = cfg->pose * expUp(a);
+    Vector3d position = current_pose.block<3, 1>(0, 3);
+    double x = position.x(), y = position.y(), z = position.z();
+    double distance = 0;
+    if (z <= helper->channel_height) {
+      distance = fmin(helper->channel_radius - sqrt(x*x + y*y), z);
+    } else {
+      distance = helper->channel_radius - sqrt(x*x + y*y + (z-helper->channel_height)*(z-helper->channel_height));
+    }
+    VectorXd ret(1); ret << -(distance - helper->channel_safety_margin);
+    return ret;
   }
 
 }
