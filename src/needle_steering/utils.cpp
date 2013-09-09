@@ -136,16 +136,38 @@ namespace Needle {
     return x;
   }
 
+  Matrix3d rotMatFromAxisAngle(const Vector3d& x) {
+    double theta = x.norm();
+    if (theta < 1e-8) {
+      return Matrix3d::Identity();
+    }
+    Vector3d w = x / theta;
+    return Matrix3d::Identity() + rotMat(w)*sin(theta) + rotMat(w)*rotMat(w)*(1-cos(theta));
+  }
+
+  Vector3d axisAngleFromRotMat(Matrix3d X) {
+    Vector3d x;
+    x << X(2, 1) - X(1, 2),
+         X(0, 2) - X(2, 0),
+         X(1, 0) - X(0, 1);
+    double theta = acos((X.trace() - 1) / 2);
+    if (fabs(theta) < 1e-8) {
+      return Vector3d::Zero();
+    } else {
+      return x / (2*sin(theta)) * theta;
+    }
+  }
+
   Matrix4d se4Up(const Vector6d& x) {
     Matrix4d X = Matrix4d::Identity();
-    X.block<3, 3>(0, 0) = rotMat(x.tail<3>());
+    X.block<3, 3>(0, 0) = rotMatFromAxisAngle(x.tail<3>());
     X.block<3, 1>(0, 3) = x.head<3>();
     return X;
   }
 
   Vector6d se4Down(const Matrix4d& X) {
     Vector6d x;
-    x.tail<3>() = rotVec(X.block<3, 3>(0, 0));
+    x.tail<3>() = axisAngleFromRotMat(X.block<3, 3>(0, 0));
     x.head<3>() = X.block<3, 1>(0, 3);
     return x;
   }
@@ -161,6 +183,20 @@ namespace Needle {
       }
     }
     return OpenRAVE::Transform(M);
+  }
+
+  Matrix4d transformToMatrix(const OpenRAVE::Transform& M) {
+    Matrix4d X = Matrix4d::Identity();
+    OpenRAVE::TransformMatrix rot = OpenRAVE::geometry::matrixFromQuat(M.rot);//MatrixFrom
+    X(0, 3) = M.trans.x;
+    X(1, 3) = M.trans.y;
+    X(2, 3) = M.trans.z;
+    for (int row = 0; row < 3; ++row) {
+      for (int col = 0; col < 3; ++col) {
+        X(row, col) = rot.m[row*4+col];
+      }
+    }
+    return X;
   }
 
   OpenRAVE::Transform vecToTransform(const Vector6d& x) {

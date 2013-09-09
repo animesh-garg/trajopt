@@ -44,6 +44,7 @@ namespace Needle {
     bool continuous_collision;
     bool control_constraints;
     bool goal_orientation_constraint;
+    bool channel_planning;
     double env_transparency;
     double r_min;
     vector<string> ignored_kinbody_names;
@@ -51,6 +52,8 @@ namespace Needle {
     double collision_coeff;
     double collision_clearance_coeff;
     double collision_clearance_threshold;
+
+    double total_curvature_limit;
 
     double channel_radius;
     double channel_height;
@@ -85,6 +88,7 @@ namespace Needle {
     void AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddChannelConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
+    void AddTotalCurvatureConstraint(OptProb& prob, NeedleProblemInstancePtr helper);
     void AddControlConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddPoseConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddCollisionConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
@@ -100,6 +104,7 @@ namespace Needle {
     double GetRadius(const DblVec& x, int i, NeedleProblemInstancePtr pi) const;
 
     vector<VectorXd> GetSolutions(OptimizerT& opt);
+    vector< vector<Vector6d> > GetStates(OptimizerT& opt);
     void SetSolutions(const vector<VectorXd>& sol, OptimizerT& opt);
     void IntegrateControls(DblVec& x);
 

@@ -57,9 +57,12 @@ namespace Needle {
       AddStartConstraint(prob, pi);
       AddGoalConstraint(prob, pi);
       AddSpeedConstraint(prob, pi);
-      #ifdef CHANNEL
-      AddChannelConstraint(prob, pi);
-      #endif
+      if (this->channel_planning) {
+        AddChannelConstraint(prob, pi);
+        if (this->curvature_constraint == BoundedRadius) {
+          AddTotalCurvatureConstraint(prob, pi);
+        }
+      }
       if (control_constraints) {
         if (this->explicit_controls) {
           AddControlConstraint(prob, pi);
@@ -85,13 +88,19 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::AddChannelConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
-    for (int i = 0; i < pi->local_configs.size(); ++i) {
+    for (int i = 1; i < pi->local_configs.size(); ++i) {
       VarVector vars = pi->twistvars.row(i);
       VectorOfVectorPtr f(new Needle::ChannelSurfaceDistance(pi->local_configs[i], shared_from_this()));
-      VectorXd coeffs(1); coeffs << 1.;
+      VectorXd coeffs(3); coeffs << 1., 1., 1.;
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, (boost::format("channel_surface_distance_collision_%i")%i).str())));
-      pi->collision_constraints.push_back(prob.getConstraints().back());
+      pi->dynamics_constraints.push_back(prob.getConstraints().back());
     }
+  }
+
+  void NeedleProblemHelper::AddTotalCurvatureConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
+    VectorOfVectorPtr f(new Needle::TotalCurvatureError(this->total_curvature_limit, shared_from_this()));
+    VectorXd coeffs(1); coeffs << 1.;
+    prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, pi->curvature_or_radius_vars.flatten(), coeffs, INEQ, (boost::format("total_curvature_constraint_collision_%i")%pi->id).str())));
   }
 
   void NeedleProblemHelper::InitOptimizeVariables(OptimizerT& opt) {
@@ -126,10 +135,10 @@ namespace Needle {
           for (int i = 0; i < pi->T; ++i) {
             switch (curvature_formulation) {
               case UseCurvature:
-                pi->initVec.push_back(1.0 / r_min);
+                pi->initVec.push_back(1.0 / (r_min*4));
                 break;
               case UseRadius:
-                pi->initVec.push_back(r_min);
+                pi->initVec.push_back(r_min*4);
                 break;
               SWITCH_DEFAULT;
             }
@@ -280,10 +289,10 @@ namespace Needle {
     if (curvature_constraint == BoundedRadius) {
       switch (curvature_formulation) {
         case UseCurvature:
-          AddVarArray(prob, pi->T, 1, 0.01, 1. / r_min, "curvature", pi->curvature_or_radius_vars);
+          AddVarArray(prob, pi->T, 1, 1. / (r_min*30), 1. / r_min, "curvature", pi->curvature_or_radius_vars);
           break;
         case UseRadius:
-          AddVarArray(prob, pi->T, 1, r_min, 100.0, "radius", pi->curvature_or_radius_vars);
+          AddVarArray(prob, pi->T, 1, r_min, r_min*30, "radius", pi->curvature_or_radius_vars);
           break;
         SWITCH_DEFAULT;
       }
@@ -309,13 +318,15 @@ namespace Needle {
   void NeedleProblemHelper::AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
     VarVector vars = pi->twistvars.row(0);
     if (pi->start_position_error_relax.norm() > 1e-4 || pi->start_orientation_error_relax > 1e-4) {
-      #ifdef CHANNEL
-      VectorOfVectorPtr f(new Needle::CirclePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
-      Vector3d coeffs; coeffs << 1., 1., this->coeff_orientation_error;
-      #else
-      VectorOfVectorPtr f(new Needle::SquarePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
-      Vector4d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error;
-      #endif
+      VectorOfVectorPtr f;
+      VectorXd coeffs;
+      if (this->channel_planning) {
+        f.reset(new Needle::CirclePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+        coeffs = Vector3d(1., 1., this->coeff_orientation_error);
+      } else {
+        f.reset(new Needle::SquarePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+        coeffs = VectorXd(4); coeffs << 1., 1., 1., this->coeff_orientation_error;
+      }
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
     } else {
@@ -498,10 +509,12 @@ namespace Needle {
     this->collision_coeff = 10;
     this->collision_clearance_coeff = 1;
     this->collision_clearance_threshold = 1;
+    this->total_curvature_limit = 1.57;
 
-    this->channel_radius = 1.75;
+    this->channel_radius = 2.5;
     this->channel_height = 7;
     this->channel_safety_margin = 0.25;
+    this->channel_planning = true;
 
     const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis" };
     this->ignored_kinbody_names = vector<string>(ignored_kinbody_c_strs, end(ignored_kinbody_c_strs));
@@ -539,6 +552,7 @@ namespace Needle {
     config.add(new Parameter<bool>("continuous_collision", &this->continuous_collision, "continuous_collision"));
     config.add(new Parameter<bool>("control_constraints", &this->control_constraints, "control_constraints"));
     config.add(new Parameter<bool>("goal_orientation_constraint", &this->goal_orientation_constraint, "goal_orientation_constraint"));
+    config.add(new Parameter<bool>("channel_planning", &this->channel_planning, "channel_planning"));
     
 
     CommandParser parser(config);
@@ -589,6 +603,14 @@ namespace Needle {
     vector<VectorXd> ret;
     for (int i = 0; i < n_needles; ++i) {
       ret.push_back(pis[i]->GetSolution(opt));
+    }
+    return ret;
+  }
+
+  vector< vector<Vector6d> > NeedleProblemHelper::GetStates(OptimizerT& opt) {
+    vector< vector<Vector6d> > ret;
+    for (int i = 0; i < n_needles; ++i) {
+      ret.push_back(pis[i]->GetStates(opt));
     }
     return ret;
   }

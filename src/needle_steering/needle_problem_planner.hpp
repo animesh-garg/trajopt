@@ -5,7 +5,7 @@
 #include "needle_problem_helper.hpp"
 
 namespace Needle {
-  struct NeedleProblemPlanner {
+  struct NeedleProblemPlanner : public boost::enable_shared_from_this<NeedleProblemPlanner> {
     int argc;
     char **argv;
     int n_needles;
@@ -16,6 +16,7 @@ namespace Needle {
     bool stage_result_plotting;
     bool verbose;
     bool is_first_needle_run;
+    bool separate_planning_first;
     double env_transparency;
     double deviation;
     string data_dir;

@@ -75,4 +75,11 @@ namespace Needle {
     ChannelSurfaceDistance(LocalConfigurationPtr cfg, NeedleProblemHelperPtr helper);
     VectorXd operator()(const VectorXd& a) const;
   };
+
+  struct TotalCurvatureError : public VectorOfVector {
+    NeedleProblemHelperPtr helper;
+    double total_curvature_limit;
+    TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper);
+    VectorXd operator()(const VectorXd& a) const;
+  };
 }

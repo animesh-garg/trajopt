@@ -7,7 +7,7 @@
 namespace Needle {
   struct TrajPlotter {
     TrajPlotter();
-    void OptimizerCallback(OptProb*, DblVec& x, NeedleProblemHelperPtr helper);
+    void OptimizerCallback(OptProb*, DblVec& x, NeedleProblemHelperPtr helper, NeedleProblemPlannerPtr planner, const vector< vector<VectorXd> >& extra_states);
   };
 
   struct NeedleSimPlotter {

@@ -5,7 +5,7 @@ namespace Needle {
 
   TrajPlotter::TrajPlotter() {}
 
-  void TrajPlotter::OptimizerCallback(OptProb* prob, DblVec& x, NeedleProblemHelperPtr helper) {
+  void TrajPlotter::OptimizerCallback(OptProb* prob, DblVec& x, NeedleProblemHelperPtr helper, NeedleProblemPlannerPtr planner, const vector< vector<VectorXd> >& extra_states = vector< vector<VectorXd> >()) {
     vector<GraphHandlePtr> handles;
     OSGViewerPtr viewer = OSGViewer::GetOrCreate(helper->pis[0]->local_configs[0]->GetEnv());
     //BOOST_FOREACH(CostPtr& cost, prob->getCosts()) {
@@ -20,6 +20,7 @@ namespace Needle {
     //  }
     //}
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
+    
     //CollisionChecker::GetOrCreate(*env)->PlotCollisionGeometry(handles);//SetContactDistance(collision_dist_pen + 0.05);
     for (int k = 0; k < helper->pis.size(); ++k) {
       vector<KinBodyPtr> bodies = helper->pis[k]->local_configs[0]->GetBodies();
@@ -28,10 +29,20 @@ namespace Needle {
         helper->pis[k]->local_configs[i]->SetDOFValues(toDblVec(vals.row(i)));
         BOOST_FOREACH(const KinBodyPtr& body, bodies) {
           handles.push_back(viewer->PlotKinBody(body));
-          SetTransparency(handles.back(), .35);
+          SetTransparency(handles.back(), 1);
         }
       }
     }
+    KinBodyPtr robot = env->ReadRobotURI(RobotBasePtr(), planner->robot_file_path);
+    planner->env->Add(robot, true);
+    for (int i = 0; i < extra_states.size(); ++i) {
+      for (int j = 0; j < extra_states[i].size(); ++j) {
+        robot->SetTransform(matrixToTransform(expUp(extra_states[i][j])));
+        handles.push_back(viewer->PlotKinBody(robot));
+        SetTransparency(handles.back(), 1);
+      }
+    }
+    planner->env->Remove(robot);
     viewer->Idle();
   }
 

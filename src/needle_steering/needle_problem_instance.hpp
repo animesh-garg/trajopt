@@ -26,6 +26,7 @@ namespace Needle {
     double goal_distance_error_relax;
 
     VectorXd GetSolution(OptimizerT& opt);
+    vector<Vector6d> GetStates(OptimizerT& opt);
     void SetSolution(const VectorXd& sol, OptimizerT& opt);
     VectorXd GetSolutionWithoutFirstTimestep(const VectorXd& sol);
     void PrintSolutionTrajectory(const VectorXd& sol);
