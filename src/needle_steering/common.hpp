@@ -34,7 +34,7 @@
 #endif
 
 
-#define CHANNEL
+//#define CHANNEL
 
 //#define NEEDLE_TEST
 //#define USE_CURVATURE

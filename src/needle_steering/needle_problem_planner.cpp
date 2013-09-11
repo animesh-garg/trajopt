@@ -36,49 +36,9 @@ namespace Needle {
 
     vector<string> start_string_vec;
     vector<string> goal_string_vec;
-    //start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
-    //goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,0.78,0");
-    //start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
-    //goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,0.78,0");
 
 
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("-1.25,0.0,7,-1.1780972450961724,-0.0,-0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("1.25,0.0,7,1.1780972450961724,0.0,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("0.0,-1.25,7,-0.0,-1.1780972450961724,-0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("0.0,1.25,7,0.0,1.1780972450961724,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("-1.5556349186104046,-1.5556349186104048,3.5,0.0,0.0,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("-2.12503681783595,-0.5694018992255463,3.5,0.0,0.0,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("-2.1250368178359507,0.5694018992255448,3.5,0.0,0.0,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("-1.555634918610405,1.5556349186104046,3.5,0.0,0.0,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("1.4142135623730951,1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("2.0,0.0,3.5,0.0,0.39269908169872414,0.0");
-    start_string_vec.push_back("0,0,0,0,0,0");
-    goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
-
-
-    for (int i = 0; i < goal_string_vec.size(); ++i) {
-      this->start_position_error_relax.push_back(Vector3d(1.75, 1.75, 0.1));
-      this->start_orientation_error_relax.push_back(0.2616);
-      this->goal_distance_error_relax.push_back(0);
-    }
-
-    //this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
-    //this->start_orientation_error_relax.push_back(0.0873);
-    //this->goal_distance_error_relax.push_back(0.25);
-    //this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
-    //this->start_orientation_error_relax.push_back(0.0873);
-    //this->goal_distance_error_relax.push_back(0.25);
-
+    
     vector<double> start_position_error_relax_x;
     vector<double> start_position_error_relax_y;
     vector<double> start_position_error_relax_z;
@@ -90,6 +50,7 @@ namespace Needle {
     config.add(new Parameter<bool>("stage_result_plotting", &this->stage_result_plotting, "stage_result_plotting"));
     config.add(new Parameter<bool>("verbose", &this->verbose, "verbose"));
     config.add(new Parameter<bool>("separate_planning_first", &this->separate_planning_first, "separate_planning_first"));
+    config.add(new Parameter<bool>("simultaneous_planning", &this->simultaneous_planning, "simultaneous_planning"));
     config.add(new Parameter<double>("env_transparency", &this->env_transparency, "env_transparency"));
     config.add(new Parameter<string>("data_dir", &this->data_dir, "data_dir"));
     config.add(new Parameter<string>("env_file_path", &this->env_file_path, "env_file_path"));
@@ -105,12 +66,62 @@ namespace Needle {
     CommandParser parser(config);
     parser.read(argc, argv, true);
 
+#ifdef CHANNEL
+    if (start_string_vec.size() == 0) {
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("-1.25,0.0,7,-1.1780972450961724,-0.0,-0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("1.25,0.0,7,1.1780972450961724,0.0,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("0.0,-1.25,7,-0.0,-1.1780972450961724,-0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("0.0,1.25,7,0.0,1.1780972450961724,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("-1.5556349186104046,-1.5556349186104048,3.5,0.0,0.0,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("-2.12503681783595,-0.5694018992255463,3.5,0.0,0.0,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("-2.1250368178359507,0.5694018992255448,3.5,0.0,0.0,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("-1.555634918610405,1.5556349186104046,3.5,0.0,0.0,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("1.4142135623730951,1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("2.0,0.0,3.5,0.0,0.39269908169872414,0.0");
+      start_string_vec.push_back("0,0,0,0,0,0");
+      goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+      for (int i = 0; i < goal_string_vec.size(); ++i) {
+        this->start_position_error_relax.push_back(Vector3d(1.75, 1.75, 0.1));
+        this->start_orientation_error_relax.push_back(0.1744);
+        this->goal_distance_error_relax.push_back(0);
+      }
+    }
+    if (this->env_file_path.length() == 0) {
+      this->env_file_path = data_dir + "/channel.env.xml";
+    }
+    if (this->robot_file_path.length() == 0) {
+      this->robot_file_path = data_dir + "/channelbot.xml";
+    }
+#else
+    if (start_string_vec.size() == 0) {
+      start_string_vec.push_back("-11.17067,5.04934,0,0,0.78,0");
+      goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,0.78,0");
+      start_string_vec.push_back("-11.67067,5.54934,0,0,0.78,0");
+      goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,0.78,0");
+      
+      for (int i = 0; i < goal_string_vec.size(); ++i) {
+        this->start_position_error_relax.push_back(Vector3d(0.05, 1.25, 1.25));
+        this->start_orientation_error_relax.push_back(0.0873);
+        this->goal_distance_error_relax.push_back(0.25);
+      }
+    }
     if (this->env_file_path.length() == 0) {
       this->env_file_path = data_dir + "/prostate.env.xml";
     }
     if (this->robot_file_path.length() == 0) {
       this->robot_file_path = data_dir + "/needlebot.xml";
     }
+#endif
 
     if (start_string_vec.size() != goal_string_vec.size()) {
       throw std::runtime_error("The number of start and goal vectors must be the same!");
@@ -150,27 +161,9 @@ namespace Needle {
 
       strtk::parse(start_string_vec[i], ",", start_vec);
       strtk::parse(goal_string_vec[i], ",", goal_vec);
-      //robot->SetJointValues(start_vec);
-      Vector6d start, goal;
-      start = toVectorXd(start_vec);//logDown(transformToMatrix(robot->GetTransform()));
-      goal = toVectorXd(goal_vec);//logDown(transformToMatrix(robot->GetTransform()));
-
-      //if (i < 4) {
-        start = logDown(se4Up(start));
-        goal = logDown(se4Up(goal));
-      //}
-      //if (i < 4) {
-      ////robot->SetJointValues(goal_vec);
-      ////cout << "dof: " << robot->GetDOF() << endl;
-      ////cout << "transform: " << endl << robot->GetTransform() << endl;
-      //} else {
-      //  
-      //}
-      //cout << "start: " << start.transpose() << endl;
-      //cout << "goal: " << start.transpose() << endl;
-      //Vector6d start = toVectorXd(start_vec), goal = toVectorXd(goal_vec);
-      starts.push_back(start);//logDown(se4Up(start)));
-      goals.push_back(goal);//logDown(se4Up(goal)));
+      
+      starts.push_back(logDown(se4Up(toVectorXd(start_vec))));
+      goals.push_back(logDown(se4Up(toVectorXd(goal_vec))));
     }
     this->env->Remove(robot);
 
@@ -196,62 +189,99 @@ namespace Needle {
 
   vector<VectorXd> NeedleProblemPlanner::Solve(const vector<VectorXd>& initial) {
     vector<KinBodyPtr> robots;
-    vector<VectorXd> sol;
+    vector<VectorXd> sols = initial;
     vector< vector<Vector6d> > states;
     for (int i = 0; i < n_needles; ++i) {
       states.push_back(vector<Vector6d>());
     }
-    bool all_converged = false;
-    while (!all_converged) {
-      double all_converged = true;
+    if (sols.size() == 0) {
       for (int i = 0; i < n_needles; ++i) {
-        trajopt::SetUserData(*this->env, "trajopt_cc", OpenRAVE::UserDataPtr());
-        helper->InitParametersFromConsole(this->argc, this->argv);
-        helper->n_needles = 1;
-        helper->starts.push_back(this->starts[i]);
-        helper->goals.push_back(this->goals[i]);
-        helper->start_position_error_relax.push_back(this->start_position_error_relax[i]);
-        helper->start_orientation_error_relax.push_back(this->start_orientation_error_relax[i]);
-        helper->goal_distance_error_relax.push_back(this->goal_distance_error_relax[i]);
-        helper->Ts.push_back(this->Ts[i]);
-        helper->robots.push_back(this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path));
-        this->env->Add(helper->robots.back(), true);
-        if (!this->is_first_needle_run && i == 0) { // fix start position if not first run
-          helper->start_position_error_relax.front() = Vector3d::Zero();
-          helper->start_orientation_error_relax.front() = 0;
-        }
+        sols.push_back(VectorXd::Zero(0));
+      }
+    }
+    bool all_converged = false;
+    vector<bool> prev_converged(n_needles, true);
+    if (this->separate_planning_first || !this->simultaneous_planning) {
+      while (!all_converged) {
+        all_converged = true;
+        for (int i = 0; i < n_needles; ++i) {
+          trajopt::SetUserData(*this->env, "trajopt_cc", OpenRAVE::UserDataPtr());
+          this->managed_kinbodies.clear();
+          
+          helper->InitParametersFromConsole(this->argc, this->argv);
+          helper->n_needles = 1;
+          helper->starts.push_back(this->starts[i]);
+          helper->goals.push_back(this->goals[i]);
+          helper->start_position_error_relax.push_back(this->start_position_error_relax[i]);
+          helper->start_orientation_error_relax.push_back(this->start_orientation_error_relax[i]);
+          helper->goal_distance_error_relax.push_back(this->goal_distance_error_relax[i]);
+          helper->Ts.push_back(this->Ts[i]);
+          helper->robots.push_back(this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path));
+          
+          this->env->Add(helper->robots.back(), true);
+          if (!this->is_first_needle_run && i == 0) { // fix start position if not first run
+            helper->start_position_error_relax.front() = Vector3d::Zero();
+            helper->start_orientation_error_relax.front() = 0;
+          }
+          for (int j = 0; j < states.size(); ++j) {
+            if (i != j) {
+              this->AddSimulatedNeedleToBullet(states[j]);
+            }
+          }
+          OptProbPtr prob(new OptProb());
+          helper->ConfigureProblem(*prob);
+          OptimizerT opt(prob);
+          helper->ConfigureOptimizer(opt);
+          if (sols[i].size() > 0) {//initial.size() == helper->n_needles) {
+            vector<VectorXd> subinitial;
+            subinitial.push_back(sols[i]);
+            for (int j = 0; j < subinitial[0].size(); ++j) {
+              if (!prev_converged[i]) {
+                subinitial[0](j) += normal() * 0.4;
+                //subinitial[0](j) += normal() * 0.01;
+              }// else {
+              //}
+            }
+            helper->SetSolutions(subinitial, opt);
+          }
+          //if (!this->is_first_needle_run && i == 0) {
+          //  helper->IntegrateControls(opt.x());
+          //}
+          if (this->stage_plotting || this->stage_result_plotting) {
+            this->plotter.reset(new Needle::TrajPlotter());
+          }
+          if (this->stage_plotting) {
+            opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), true, vector< vector<Vector6d> >()));
+          }
+          
+          OptStatus status = opt.optimize();
+          if (status != OPT_CONVERGED) {
+            cout << "Needle " << i << " not converged" << endl;
+            all_converged = false;
+          } else {
+            cout << "Needle " << i << " converged" << endl;
+          }
 
-        OptProbPtr prob(new OptProb());
-        helper->ConfigureProblem(*prob);
-        OptimizerT opt(prob);
-        helper->ConfigureOptimizer(opt);
-        if (initial.size() == helper->n_needles) {
-          vector<VectorXd> subinitial;
-          subinitial.push_back(initial[i]);
-          helper->SetSolutions(subinitial, opt);
+          prev_converged[i] = status == OPT_CONVERGED;
+          for (int j = 0; j < helper->robots.size(); ++j) {
+            robots.push_back(helper->robots[j]);
+          }
+          sols[i] = helper->GetSolutions(opt).front();
+          //helper->AddNeedlesToBullet(opt);
+          if (this->stage_result_plotting) {// && i == n_needles - 1) {
+            vector< vector<Vector6d> > plot_states;
+            for (int j = 0; j < states.size(); ++j) {
+              if (i != j) {
+                plot_states.push_back(states[j]);
+              }
+            }
+            this->plotter->OptimizerCallback(prob.get(), opt.x(), this->helper, shared_from_this(), true, plot_states);
+          }
+          states[i] = helper->GetStates(opt).front();
         }
-        if (!this->is_first_needle_run && i == 0) {
-          helper->IntegrateControls(opt.x());
+        if (this->simultaneous_planning) {
+          break;
         }
-        if (this->stage_plotting || this->stage_result_plotting) {
-          this->plotter.reset(new Needle::TrajPlotter());
-        }
-        if (this->stage_plotting) {
-          opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), vector< vector<VectorXd> >()));
-        }
-        OptStatus status = opt.optimize();
-        if (status != OPT_CONVERGED) {
-          all_converged = false;
-        }
-        for (int j = 0; j < helper->robots.size(); ++j) {
-          robots.push_back(helper->robots[j]);
-        }
-        sol.push_back(helper->GetSolutions(opt).front());
-        helper->AddNeedlesToBullet(opt);
-        if (this->stage_result_plotting) {
-          this->plotter->OptimizerCallback(prob.get(), opt.x(), this->helper, shared_from_this(), states);
-        }
-        states.push_back(helper->GetStates(opt).front());
       }
     }
     trajopt::SetUserData(*env, "trajopt_cc", OpenRAVE::UserDataPtr());
@@ -289,41 +319,40 @@ namespace Needle {
     OptimizerT opt(prob);
     helper->ConfigureOptimizer(opt);
 
-    if (this->separate_planning_first) {
-      helper->SetSolutions(sol, opt);
+    if (this->separate_planning_first || !this->simultaneous_planning) {
+      helper->SetSolutions(sols, opt);
     } else {
       if (initial.size() == helper->n_needles) {
         helper->SetSolutions(initial, opt);
       }
-      if (!this->is_first_needle_run) {
-        helper->IntegrateControls(opt.x());
-      }
     }
+    //if (!this->is_first_needle_run) {
+    //  helper->IntegrateControls(opt.x());
+    //}
 
-    
-    
     if (this->stage_plotting || this->stage_result_plotting) {
       this->plotter.reset(new Needle::TrajPlotter());
     }
     if (this->stage_plotting) {
-      opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), vector< vector<VectorXd> >()));
+      opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), true, vector< vector<Vector6d> >()));
     }
 
-    opt.optimize();
+    if (this->simultaneous_planning) {
+      opt.optimize();
+      if (this->stage_result_plotting) {
+        this->plotter->OptimizerCallback(prob.get(), this->x, this->helper, shared_from_this(), true, vector< vector<Vector6d> >());
+      }
+    }
 
     this->x = opt.x();
 
-    if (this->stage_result_plotting) {
-      this->plotter->OptimizerCallback(prob.get(), this->x, this->helper, shared_from_this(), vector< vector<VectorXd> >());
-    }
-
-    sol = helper->GetSolutions(opt);
+    sols = helper->GetSolutions(opt);
     
-    return sol;
+    return sols;
   }
 
   Vector6d NeedleProblemPlanner::PerturbState(const Vector6d& state) {
-    Vector6d ret = state;//se4Down(expUp(state));
+    Vector6d ret = state;
     for (int i = 0; i < 3; ++i) {
       ret(i) += normal() * 0.05;
     }
@@ -331,13 +360,6 @@ namespace Needle {
       ret(i) += normal() * 0.025;
     }
     return ret;
-    //cout << "transformed matrix: " << endl << se4Up(se4Down(expUp(state))) << endl;
-    //cout << "transformed matrix should be: " << endl << expUp(state) << endl;
-    //cout << "transformed 2: " << se4Down(se4Up(state)).transpose() << endl;
-    //cout << "transformed 1: " << logDown(expUp(state)).transpose() << endl;
-    //cout << "transformed: " << logDown(se4Up(se4Down(expUp(state)))).transpose() << endl;
-    //cout << "original: " << state.transpose() << endl;
-    //return logDown(se4Up(ret));
   }
 
   void NeedleProblemPlanner::SimulateExecution() {
@@ -368,9 +390,6 @@ namespace Needle {
     BOOST_FOREACH(const Collision& collision, collisions) {
       cout << "distance: " << collision.distance << endl;
     }
-    //boost::shared_ptr<BulletCollisionChecker> cc = boost::dynamic_pointer_cast<BulletCollisionChecker>();
-    //cc->ContinuousCheckShape(
-
     if (Ts.front() > 1) {
       --Ts.front();
       this->is_first_needle_run = false;
@@ -406,6 +425,9 @@ namespace Needle {
   }
 
   void NeedleProblemPlanner::AddSimulatedNeedleToBullet(const vector<Vector6d>& states) {
+    if (states.size() == 0) {
+      return;
+    }
     KinBodyPtr robot = this->env->ReadRobotURI(RobotBasePtr(), this->robot_file_path);
     this->managed_kinbodies.push_back(robot);
     this->env->Add(robot, true);
@@ -424,5 +446,6 @@ namespace Needle {
       cc->AddCastHullShape(*local_configs[i], *local_configs[i+1], links, toDblVec(Vector6d::Zero()), toDblVec(Vector6d::Zero()));
     }
     this->env->Remove(robot);
+    cc->SetLinkIndices();
   }
 }

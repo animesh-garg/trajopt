@@ -17,6 +17,7 @@ namespace Needle {
     bool verbose;
     bool is_first_needle_run;
     bool separate_planning_first;
+    bool simultaneous_planning;
     double env_transparency;
     double deviation;
     string data_dir;

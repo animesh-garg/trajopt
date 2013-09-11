@@ -23,7 +23,7 @@ void PlotTraj(OSGViewer& viewer, Configuration& rad, const TrajArray& x, vector<
   }
 }
 
-void PlotCosts(OSGViewer& viewer, vector<CostPtr>& costs, vector<ConstraintPtr>& cnts, Configuration& rad, const VarArray& vars, const DblVec& x) {
+bool PlotCosts(OSGViewer& viewer, vector<CostPtr>& costs, vector<ConstraintPtr>& cnts, Configuration& rad, const VarArray& vars, const DblVec& x) {
   vector<GraphHandlePtr> handles;
   handles.clear();
   BOOST_FOREACH(CostPtr& cost, costs) {
@@ -40,6 +40,7 @@ void PlotCosts(OSGViewer& viewer, vector<CostPtr>& costs, vector<ConstraintPtr>&
   PlotTraj(viewer, rad, traj, handles);
   viewer.Idle();
   rad.SetDOFValues(toDblVec(traj.row(traj.rows()-1)));
+  return false;
 }
 
 

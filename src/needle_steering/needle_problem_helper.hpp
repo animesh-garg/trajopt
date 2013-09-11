@@ -69,7 +69,7 @@ namespace Needle {
 
     void ConfigureProblem(OptProb& prob);
     void InitOptimizeVariables(OptimizerT& opt);
-    void OptimizerCallback(OptProb*, DblVec& x);
+    bool OptimizerCallback(OptProb*, DblVec& x);
     void ConfigureOptimizer(OptimizerT& opt);
     vector<VectorXd> GetSolutionsWithoutFirstTimestep(const vector<VectorXd>& sol);
 

@@ -16,7 +16,7 @@ struct TRAJOPT_API TrajPlotter {
   void Add(const vector<PlotterPtr>& plotters);
   void Add(PlotterPtr plotter);
   void AddLink(OpenRAVE::KinBody::LinkPtr link);
-  void OptimizerCallback(OptProb*, DblVec& x);
+  bool OptimizerCallback(OptProb*, DblVec& x);
   void SetDecimation(int dec) {m_decimation=dec;}
 
 };

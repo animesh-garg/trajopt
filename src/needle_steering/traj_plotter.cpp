@@ -5,7 +5,7 @@ namespace Needle {
 
   TrajPlotter::TrajPlotter() {}
 
-  void TrajPlotter::OptimizerCallback(OptProb* prob, DblVec& x, NeedleProblemHelperPtr helper, NeedleProblemPlannerPtr planner, const vector< vector<VectorXd> >& extra_states = vector< vector<VectorXd> >()) {
+  bool TrajPlotter::OptimizerCallback(OptProb* prob, DblVec& x, NeedleProblemHelperPtr helper, NeedleProblemPlannerPtr planner, bool halt = true, const vector< vector<Vector6d> >& extra_states = vector< vector<Vector6d> >()) {
     vector<GraphHandlePtr> handles;
     OSGViewerPtr viewer = OSGViewer::GetOrCreate(helper->pis[0]->local_configs[0]->GetEnv());
     //BOOST_FOREACH(CostPtr& cost, prob->getCosts()) {
@@ -39,11 +39,12 @@ namespace Needle {
       for (int j = 0; j < extra_states[i].size(); ++j) {
         robot->SetTransform(matrixToTransform(expUp(extra_states[i][j])));
         handles.push_back(viewer->PlotKinBody(robot));
-        SetTransparency(handles.back(), 1);
+        SetTransparency(handles.back(), 0.35);
       }
     }
     planner->env->Remove(robot);
-    viewer->Idle();
+    if (halt) viewer->Idle();
+    return false;
   }
 
   NeedleSimPlotter::NeedleSimPlotter() {}

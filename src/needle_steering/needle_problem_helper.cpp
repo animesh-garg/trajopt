@@ -98,9 +98,19 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::AddTotalCurvatureConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
-    VectorOfVectorPtr f(new Needle::TotalCurvatureError(this->total_curvature_limit, shared_from_this()));
+    VectorOfVectorPtr f(new Needle::TotalCurvatureError(this->total_curvature_limit, shared_from_this(), pi));
     VectorXd coeffs(1); coeffs << 1.;
-    prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, pi->curvature_or_radius_vars.flatten(), coeffs, INEQ, (boost::format("total_curvature_constraint_collision_%i")%pi->id).str())));
+    VarVector vars = pi->curvature_or_radius_vars.flatten();
+    switch (this->speed_formulation) {
+      case ConstantSpeed:
+        vars = concat(vars, singleton<Var>(pi->Deltavar));
+        break;
+      case VariableSpeed:
+        vars = concat(vars, pi->Deltavars.flatten());
+        break;
+      SWITCH_DEFAULT;
+    }
+    prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, (boost::format("total_curvature_constraint_collision_%i")%pi->id).str())));
   }
 
   void NeedleProblemHelper::InitOptimizeVariables(OptimizerT& opt) {
@@ -224,7 +234,7 @@ namespace Needle {
     }
   }
 
-  void NeedleProblemHelper::OptimizerCallback(OptProb*, DblVec& x) {
+  bool NeedleProblemHelper::OptimizerCallback(OptProb*, DblVec& x) {
     
     switch (method) {
       case Colocation: {
@@ -235,12 +245,13 @@ namespace Needle {
           }
           setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
         }
-        break;
+        return false;
       }
       case Shooting: {
         // execute the control input to set local configuration poses
         for (int i = 0; i < n_needles; ++i) {
-          pis[i]->local_configs[0]->pose = expUp(pis[i]->start);
+          MatrixXd twistvals = getTraj(x, pis[i]->twistvars);
+          pis[i]->local_configs[0]->pose *= expUp(twistvals.row(0));
           for (int j = 0; j < pis[i]->T; ++j) {
             double phi = GetPhi(x, j, pis[i]);
             double Delta = GetDelta(x, j, pis[i]);
@@ -249,7 +260,7 @@ namespace Needle {
             setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
           }
         }
-        break;
+        return true; // should_recompute = true: needs to recompute cnts and costs
       }
       SWITCH_DEFAULT;
     }
@@ -466,6 +477,7 @@ namespace Needle {
         if (std::find(ignored_kinbody_names.begin(), ignored_kinbody_names.end(), bodies[i]->GetName()) != ignored_kinbody_names.end()) {
           BOOST_FOREACH(const KinBody::LinkPtr& robot_link, robots[k]->GetLinks()) {
             BOOST_FOREACH(const KinBody::LinkPtr& body_link, bodies[i]->GetLinks()) {
+              cout << "adding collision excluded" << endl;
               CollisionChecker::GetOrCreate(*env)->ExcludeCollisionPair(*body_link, *robot_link);//*bodies[i]->GetLinks()[0], *robots[k]->GetLinks()[0]);
             }
           }
@@ -544,6 +556,7 @@ namespace Needle {
     config.add(new Parameter<double>("collision_clearance_coeff", &this->collision_clearance_coeff, "collision_clearance_coeff"));
     config.add(new Parameter<double>("collision_clearance_threshold", &this->collision_clearance_threshold, "collision_clearance_threshold"));
     config.add(new Parameter<double>("merit_error_coeff", &this->merit_error_coeff, "merit_error_coeff"));
+    config.add(new Parameter<double>("total_curvature_limit", &this->total_curvature_limit, "total_curvature_limit"));
     config.add(new Parameter<bool>("use_speed_deviation_constraint", &this->use_speed_deviation_constraint, "use_speed_deviation_constraint"));
     config.add(new Parameter<bool>("use_speed_deviation_cost", &this->use_speed_deviation_cost, "use_speed_deviation_cost"));
     config.add(new Parameter<bool>("use_collision_clearance_cost", &this->use_collision_clearance_cost, "use_collision_clearance_cost"));

@@ -40,7 +40,7 @@ void TrajPlotter::Add(PlotterPtr plotter) {
   m_plotters.push_back(plotter);
 }
 
-void TrajPlotter::OptimizerCallback(OptProb*, DblVec& x) {
+bool TrajPlotter::OptimizerCallback(OptProb*, DblVec& x) {
   OSGViewerPtr viewer = OSGViewer::GetOrCreate(m_env);
   vector<GraphHandlePtr> handles;
 
@@ -73,6 +73,8 @@ void TrajPlotter::OptimizerCallback(OptProb*, DblVec& x) {
 
 
   viewer->Idle();
+
+  return false;
 
 
 }

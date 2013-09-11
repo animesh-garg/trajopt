@@ -191,10 +191,13 @@ void Optimizer::addCallback(const Callback& cb) {
   callbacks_.push_back(cb);
 }
 
-void Optimizer::callCallbacks(DblVec& x) {
+bool Optimizer::callCallbacks(DblVec& x) {
+  bool should_recompute = false;
   for (int i=0; i < callbacks_.size(); ++i) {
-    callbacks_[i](prob_.get(), x);
+    bool result = callbacks_[i](prob_.get(), x);
+    should_recompute = should_recompute || result;
   }
+  return should_recompute;
 }
 
 void Optimizer::initialize(const vector<double>& x) {
@@ -306,16 +309,16 @@ OptStatus BasicTrustRegionSQP::optimize() {
     //++results_.n_merit_increases;
 
     for (int iter=1; ; ++iter) { /* sqp loop */
-      callCallbacks(x_);
+      bool should_recompute = callCallbacks(x_);
 
       LOG_DEBUG("current iterate: %s", CSTR(x_));
       LOG_INFO("merit increases iteration: %i; sqp iteration %i", merit_increases, iter);
 
       // speedup: if you just evaluated the cost when doing the line search, use that
-      if (results_.cost_vals.empty() && results_.cnt_viols.empty()) { //only happens on the first iteration
+      if (results_.cost_vals.empty() && results_.cnt_viols.empty() || should_recompute) { //only happens on the first iteration
         results_.cnt_viols = evaluateConstraintViols(constraints, x_, model_.get());
         results_.cost_vals = evaluateCosts(prob_->getCosts(), x_, model_.get());
-        assert(results_.n_func_evals == 0);
+        assert(results_.n_func_evals == 0 || should_recompute);
         ++results_.n_func_evals;
       }
 
@@ -550,18 +553,18 @@ OptStatus NeedleSQP::optimize() {
     //++results_.n_merit_increases;
 
     for (int iter=1; ; ++iter) { /* sqp loop */
-      callCallbacks(x_);
+      bool should_recompute = callCallbacks(x_);
 
       LOG_DEBUG("current iterate: %s", CSTR(x_));
       LOG_INFO("merit increases iteration: %i; sqp iteration %i", merit_increases, iter);
 
       // speedup: if you just evaluated the cost when doing the line search, use that
-      if (results_.cost_vals.empty() && results_.dynamics_cnt_viols.empty() && results_.collision_cnt_viols.empty()) { //only happens on the first iteration
+      if (results_.cost_vals.empty() && results_.dynamics_cnt_viols.empty() && results_.collision_cnt_viols.empty() || should_recompute) { //only happens on the first iteration
         results_.dynamics_cnt_viols = evaluateConstraintViols(dynamics_constraints, x_, model_.get());
         results_.collision_cnt_viols = evaluateConstraintViols(collision_constraints, x_, model_.get());
         results_.cnt_viols = concat(results_.dynamics_cnt_viols, results_.collision_cnt_viols);
         results_.cost_vals = evaluateCosts(prob_->getCosts(), x_, model_.get());
-        assert(results_.n_func_evals == 0);
+        assert(results_.n_func_evals == 0 || should_recompute);
         ++results_.n_func_evals;
       }
 
@@ -749,7 +752,7 @@ OptStatus NeedleSQP::optimize() {
           ++results_.n_merit_increases;
           collision_merit_error_coeff_ *= merit_coeff_increase_ratio_;
           dynamics_merit_error_coeff_ *= merit_coeff_increase_ratio_;
-          cout << "increasing both" << endl;
+          LOG_INFO("increasing both");
           //cout << "increasing just collision" << endl;
           trust_box_size_ = fmax(trust_box_size_, min_trust_box_size_ / trust_shrink_ratio_ * 1.5);
 
@@ -757,11 +760,11 @@ OptStatus NeedleSQP::optimize() {
           ++merit_increases;
           ++results_.n_merit_increases;
           dynamics_merit_error_coeff_ *= merit_coeff_increase_ratio_;
-          cout << "increasing just dynamics" << endl;
+          LOG_INFO("increasing just dynamics");
           trust_box_size_ = fmax(trust_box_size_, min_trust_box_size_ / trust_shrink_ratio_ * 1.5);
         }
 
-        cout << "(" << collision_merit_error_coeff_ << ", " << dynamics_merit_error_coeff_ << ")" << endl;
+        LOG_INFO("(%f, %f)", collision_merit_error_coeff_, dynamics_merit_error_coeff_);
 
         if (record_trust_region_history_) {
           INC_LOG_TRUST_REGION;

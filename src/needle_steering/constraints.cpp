@@ -187,24 +187,40 @@ namespace Needle {
     return ret;
   }
 
-  TotalCurvatureError::TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper) : total_curvature_limit(total_curvature_limit), helper(helper) {}
+  TotalCurvatureError::TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper, NeedleProblemInstancePtr pi) : total_curvature_limit(total_curvature_limit), helper(helper), pi(pi) {}
 
   VectorXd TotalCurvatureError::operator()(const VectorXd& a) const {
+    DblVec curvatures;
+    DblVec Deltas;
     switch (helper->curvature_formulation) {
       case NeedleProblemHelper::UseCurvature: {
-        VectorXd ret(1);
-        ret << a.sum() - this->total_curvature_limit;
-        return ret;
+        curvatures = toDblVec(a.head(pi->curvature_or_radius_vars.size()));
+        break;
       }
       case NeedleProblemHelper::UseRadius: {
-        VectorXd ret(1);
-        ret(0) = -this->total_curvature_limit;
-        for (int i = 0; i < a.size(); ++i) {
-          ret(0) += 1.0 / a(i);
+        for (int i = 0; i < pi->curvature_or_radius_vars.size(); ++i) {
+          curvatures.push_back(1.0 / a(i));
         }
-        return ret;
+        break;
       }
       SWITCH_DEFAULT;
     }
+    switch (helper->speed_formulation) {
+      case NeedleProblemHelper::ConstantSpeed: {
+        Deltas = DblVec(pi->curvature_or_radius_vars.size(), a(a.size() - 1));
+        break;
+      }
+      case NeedleProblemHelper::VariableSpeed: {
+        Deltas = toDblVec(a.tail(pi->Deltavars.size()));
+        break;
+      }
+      SWITCH_DEFAULT;
+    }
+    VectorXd ret(1);
+    ret(0) = -this->total_curvature_limit;
+    for (int i = 0; i < curvatures.size(); ++i) {
+      ret(0) += curvatures[i] * Deltas[i];
+    }
+    return ret;
   }
 }

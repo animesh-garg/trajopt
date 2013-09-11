@@ -74,11 +74,11 @@ public:
   vector<double>& x() {return results_.x;}
   OptResults& results() {return results_;}
 
-  typedef boost::function<void(OptProb*, DblVec&)> Callback;
+  typedef boost::function<bool(OptProb*, DblVec&)> Callback;
   void addCallback(const Callback& f); // called before each iteration
 protected:
   vector<Callback> callbacks_;
-  void callCallbacks(DblVec& x);
+  bool callCallbacks(DblVec& x);
   OptProbPtr prob_;
   OptResults results_;
 };

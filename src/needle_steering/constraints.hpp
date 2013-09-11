@@ -78,8 +78,9 @@ namespace Needle {
 
   struct TotalCurvatureError : public VectorOfVector {
     NeedleProblemHelperPtr helper;
+    NeedleProblemInstancePtr pi;
     double total_curvature_limit;
-    TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper);
+    TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper, NeedleProblemInstancePtr pi);
     VectorXd operator()(const VectorXd& a) const;
   };
 }
