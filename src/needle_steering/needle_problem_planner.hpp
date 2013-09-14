@@ -9,6 +9,8 @@ namespace Needle {
     int argc;
     char **argv;
     int n_needles;
+
+    int max_sequential_solves;
     vector<int> Ts;
     NeedleProblemHelperPtr helper;
 
@@ -18,6 +20,10 @@ namespace Needle {
     bool is_first_needle_run;
     bool separate_planning_first;
     bool simultaneous_planning;
+    bool channel_planning;
+    bool current_converged;
+    bool seq_result_plotting;
+    bool perturb_initialization;
     double env_transparency;
     double deviation;
     string data_dir;
@@ -29,17 +35,20 @@ namespace Needle {
 
     vector<Vector6d> starts;
     vector<Vector6d> goals;
+    vector<Vector6d> starts_data;
+    vector<Vector6d> goals_data;
     DblVec x;
     vector<Vector3d> start_position_error_relax;
     vector<double> start_orientation_error_relax;
     vector<double> goal_distance_error_relax;
+    vector<double> distance_to_goal;
     vector<KinBodyPtr> managed_kinbodies;
     vector<LocalConfigurationPtr> managed_configs;
 
     vector< vector<Vector6d> > simulated_needle_trajectories;
-
-    //boost::shared_ptr<OptimizerT> opt;
-    //OptProbPtr prob;
+    vector<bool> sim_in_collision;
+    int current_sim_index;
+    int n_multi_iterations;
 
     NeedleProblemPlanner(int argc, char **argv);
     ~NeedleProblemPlanner();

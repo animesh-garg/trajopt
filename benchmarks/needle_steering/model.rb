@@ -12,4 +12,16 @@ class Record
   field :cost
   field :trust_shrink_ratio
   field :trust_expand_ratio
+  field :converged_cnt
+  field :converged
+  field :collision_free_dis
+  field :collision_free_cnt
+  field :collision_status
+  field :distance_to_goals
+  field :distance_to_goal
+  field :n_multi_iterations
+  field :collision_clearance_coeff
+  field :twist_costs
+  field :path_length_costs
+  field :clearance_costs
 end

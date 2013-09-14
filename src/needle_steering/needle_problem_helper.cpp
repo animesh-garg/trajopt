@@ -13,10 +13,12 @@ namespace Needle {
     switch (rotation_cost) {
       case UseRotationQuadraticCost: {
         prob.addCost(CostPtr(new RotationQuadraticCost(pi->phivars.col(0), coeff_rotation, shared_from_this())));
+        this->rotation_costs.push_back(prob.getCosts().back());
         break;
       }
       case UseRotationL1Cost: {
         prob.addCost(CostPtr(new RotationL1Cost(pi->phivars.col(0), coeff_rotation_regularization, shared_from_this())));
+        this->rotation_costs.push_back(prob.getCosts().back());
         break;
       }
       SWITCH_DEFAULT;
@@ -27,9 +29,11 @@ namespace Needle {
     switch (speed_formulation) {
       case ConstantSpeed:
         prob.addCost(CostPtr(new ConstantSpeedCost(pi->Deltavar, coeff_speed, shared_from_this(), pi)));
+        this->speed_costs.push_back(prob.getCosts().back());
         break;
       case VariableSpeed:
         prob.addCost(CostPtr(new VariableSpeedCost(pi->Deltavars.col(0), coeff_speed, shared_from_this())));
+        this->speed_costs.push_back(prob.getCosts().back());
         if (use_speed_deviation_cost) {
           prob.addCost(CostPtr(new SpeedDeviationCost(pi->Deltavars.col(0), pi->Delta_lb, coeff_speed, shared_from_this())));
         }
@@ -52,7 +56,9 @@ namespace Needle {
       CreateVariables(prob, pi);
       InitLocalConfigurations(this->robots[i], prob, pi);
       InitTrajectory(prob, pi);
-      AddRotationCost(prob, pi);
+      //if (!this->channel_planning) {
+        AddRotationCost(prob, pi);
+      //}
       AddSpeedCost(prob, pi);
       AddStartConstraint(prob, pi);
       AddGoalConstraint(prob, pi);
@@ -61,6 +67,7 @@ namespace Needle {
         AddChannelConstraint(prob, pi);
         if (this->curvature_constraint == BoundedRadius) {
           AddTotalCurvatureConstraint(prob, pi);
+          //AddTotalCurvatureCost(prob, pi);
         }
       }
       if (control_constraints) {
@@ -113,6 +120,23 @@ namespace Needle {
     prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, INEQ, (boost::format("total_curvature_constraint_collision_%i")%pi->id).str())));
   }
 
+  void NeedleProblemHelper::AddTotalCurvatureCost(OptProb& prob, NeedleProblemInstancePtr pi) {
+    VectorOfVectorPtr f(new Needle::TotalCurvatureCostError(this->total_curvature_limit, shared_from_this(), pi));
+    VectorXd coeffs(1); coeffs << 2.;
+    VarVector vars = pi->curvature_or_radius_vars.flatten();
+    switch (this->speed_formulation) {
+      case ConstantSpeed:
+        vars = concat(vars, singleton<Var>(pi->Deltavar));
+        break;
+      case VariableSpeed:
+        vars = concat(vars, pi->Deltavars.flatten());
+        break;
+      SWITCH_DEFAULT;
+    }
+    prob.addCost(CostPtr(new CostFromErrFunc(f, vars, coeffs, ABS, (boost::format("total_curvature_cost_%i")%pi->id).str())));
+  }
+
+
   void NeedleProblemHelper::InitOptimizeVariables(OptimizerT& opt) {
     DblVec initVec;
     for (int k = 0; k < n_needles; ++k) {
@@ -145,10 +169,10 @@ namespace Needle {
           for (int i = 0; i < pi->T; ++i) {
             switch (curvature_formulation) {
               case UseCurvature:
-                pi->initVec.push_back(1.0 / (r_min*4));
+                pi->initVec.push_back(1.0 / (r_min*2));
                 break;
               case UseRadius:
-                pi->initVec.push_back(r_min*4);
+                pi->initVec.push_back(r_min*2);
                 break;
               SWITCH_DEFAULT;
             }
@@ -285,7 +309,7 @@ namespace Needle {
     // Time frame varies from 0 to T instead of from 0 to T-1
     AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
     AddVarArray(prob, pi->T, 1, -PI, PI, "phi", pi->phivars);
-    pi->Delta_lb = 0;//(pi->goal.topRows(3) - pi->start.topRows(3)).norm() / pi->T / r_min;
+    pi->Delta_lb = (expUp(pi->goal).topRightCorner<3, 1>() - expUp(pi->start).topRightCorner<3, 1>()).norm() / pi->T;
     switch (speed_formulation) {
       case ConstantSpeed:
         pi->Deltavar = prob.createVariables(singleton<string>("Delta"), singleton<double>(pi->Delta_lb),singleton<double>(INFINITY))[0];
@@ -460,6 +484,7 @@ namespace Needle {
 
   void NeedleProblemHelper::AddCollisionClearanceCost(OptProb& prob) {
     prob.addCost(CostPtr(new NeedleCollisionClearanceCost(shared_from_this(), this->collision_clearance_coeff))); 
+    this->clearance_costs.push_back(prob.getCosts().back());
   }
 
   void NeedleProblemHelper::InitializeCollisionEnvironment() {
@@ -477,7 +502,6 @@ namespace Needle {
         if (std::find(ignored_kinbody_names.begin(), ignored_kinbody_names.end(), bodies[i]->GetName()) != ignored_kinbody_names.end()) {
           BOOST_FOREACH(const KinBody::LinkPtr& robot_link, robots[k]->GetLinks()) {
             BOOST_FOREACH(const KinBody::LinkPtr& body_link, bodies[i]->GetLinks()) {
-              cout << "adding collision excluded" << endl;
               CollisionChecker::GetOrCreate(*env)->ExcludeCollisionPair(*body_link, *robot_link);//*bodies[i]->GetLinks()[0], *robots[k]->GetLinks()[0]);
             }
           }
@@ -528,7 +552,7 @@ namespace Needle {
     this->channel_safety_margin = 0.25;
     this->channel_planning = true;
 
-    const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis" };
+    const char *ignored_kinbody_c_strs[] = { "KinBodyProstate", "KinBodyDermis", "KinBodyEpidermis", "KinBodyHypodermis", "KinBodyEntryRegion", "ImplantKinBody" };
     this->ignored_kinbody_names = vector<string>(ignored_kinbody_c_strs, end(ignored_kinbody_c_strs));
   }
 
@@ -566,7 +590,6 @@ namespace Needle {
     config.add(new Parameter<bool>("control_constraints", &this->control_constraints, "control_constraints"));
     config.add(new Parameter<bool>("goal_orientation_constraint", &this->goal_orientation_constraint, "goal_orientation_constraint"));
     config.add(new Parameter<bool>("channel_planning", &this->channel_planning, "channel_planning"));
-    
 
     CommandParser parser(config);
     parser.read(argc, argv, true);
@@ -589,7 +612,11 @@ namespace Needle {
     start_orientation_error_relax.clear();
     goal_distance_error_relax.clear();
     pis.clear();
+    Ts.clear();
     n_needles = 0;
+    rotation_costs.clear();
+    speed_costs.clear();
+    clearance_costs.clear();
   }
 
   void NeedleProblemHelper::AddNeedlesToBullet(OptimizerT& opt) {
@@ -652,7 +679,7 @@ namespace Needle {
 
   void NeedleProblemHelper::IntegrateControls(DblVec& x) {
     for (int i = 0; i < n_needles; ++i) {
-      cout << "needle No. " << i << endl;
+      //cout << "needle No. " << i << endl;
       if (i == 0) {
         pis[i]->local_configs[0]->pose = expUp(pis[i]->start);
       }
@@ -660,10 +687,54 @@ namespace Needle {
         double phi = GetPhi(x, j, pis[i]);
         double Delta = GetDelta(x, j, pis[i]);
         double curvature_or_radius = GetCurvatureOrRadius(x, j, pis[i]);
-        cout << "phi: " << phi << "; Delta: " << Delta << "; currad: " << curvature_or_radius << endl;
+        //cout << "phi: " << phi << "; Delta: " << Delta << "; currad: " << curvature_or_radius << endl;
         pis[i]->local_configs[j+1]->pose = TransformPose(pis[i]->local_configs[j]->pose, phi, Delta, curvature_or_radius);
       }
       setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
     }
   }
+
+  vector<DblVec> NeedleProblemHelper::GetPhis(OptimizerT& opt) {
+    vector<DblVec> phiss;
+    DblVec& x = opt.x();
+    for (int i = 0; i < this->pis.size(); ++i) {
+      DblVec phis;
+      for (int j = 0; j < pis[i]->T; ++j) {
+        phis.push_back(GetPhi(x, j, pis[i]));
+      }
+      phiss.push_back(phis);
+    }
+    return phiss;
+  }
+
+  vector<DblVec> NeedleProblemHelper::GetDeltas(OptimizerT& opt) {
+    vector<DblVec> Deltass;
+    DblVec& x = opt.x();
+    for (int i = 0; i < this->pis.size(); ++i) {
+      DblVec Deltas;
+      for (int j = 0; j < pis[i]->T; ++j) {
+        Deltas.push_back(GetDelta(x, j, pis[i]));
+      }
+      Deltass.push_back(Deltas);
+    }
+    return Deltass;
+  }
+
+  vector<DblVec> NeedleProblemHelper::GetCurvatures(OptimizerT& opt) {
+    vector<DblVec> curvaturess;
+    DblVec& x = opt.x();
+    for (int i = 0; i < this->pis.size(); ++i) {
+      DblVec curvatures;
+      for (int j = 0; j < pis[i]->T; ++j) {
+        if (this->curvature_formulation == UseCurvature) {
+          curvatures.push_back(GetCurvature(x, j, pis[i]));
+        } else {
+          curvatures.push_back(1.0 / GetRadius(x, j, pis[i]));
+        }
+      }
+      curvaturess.push_back(curvatures);
+    }
+    return curvaturess;
+  }
+
 }

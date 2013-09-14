@@ -25,10 +25,10 @@ namespace Needle {
     assert(a.size() == 6);
     
     Matrix4d current_pose = cfg->pose * expUp(a);
-    Vector3d current_rot = current_pose.topLeftCorner<3, 3>() * Vector3d(1, -1, 1);
-    Vector3d target_rot = target_pose.topLeftCorner<3, 3>() * Vector3d(1, -1, 1);
+    Vector3d current_rot = current_pose.topLeftCorner<3, 3>() * Vector3d(0, 0, 1);
+    Vector3d target_rot = target_pose.topLeftCorner<3, 3>() * Vector3d(0, 0, 1);
 
-    double orientation_error = fmax(cosangle(current_rot, target_rot) - cos(this->orientation_error_relax), 0);
+    double orientation_error = fmax(acos(cosangle(current_rot, target_rot)) - this->orientation_error_relax, 0);
     Vector3d position_error = (current_pose.block<3, 1>(0, 3) - target_pose.block<3, 1>(0, 3)).array().abs();
     position_error = (position_error - this->position_error_relax).cwiseMax(Vector3d::Zero());
 
@@ -43,10 +43,10 @@ namespace Needle {
     
     Matrix4d current_pose = cfg->pose * expUp(a);
 
-    Vector3d current_rot = current_pose.topLeftCorner<3, 3>() * Vector3d(1, -1, 1);
-    Vector3d target_rot = target_pose.topLeftCorner<3, 3>() * Vector3d(1, -1, 1);
+    Vector3d current_rot = current_pose.topLeftCorner<3, 3>() * Vector3d(0, 0, 1);
+    Vector3d target_rot = target_pose.topLeftCorner<3, 3>() * Vector3d(0, 0, 1);
 
-    double orientation_error = fmax(cosangle(current_rot, target_rot) - cos(this->orientation_error_relax), 0);
+    double orientation_error = fmax(acos(cosangle(current_rot, target_rot)) - this->orientation_error_relax, 0);
     double position_error = (current_pose.block<2, 1>(0, 3) - target_pose.block<2, 1>(0, 3)).norm();
     position_error = fmax(position_error - this->position_error_relax(0) + 0.2, 0);
     double height_error = fmax(fabs(current_pose(2, 3) - target_pose(2, 3)) - this->position_error_relax(2), 0);
@@ -168,22 +168,15 @@ namespace Needle {
 
   VectorXd ChannelSurfaceDistance::operator()(const VectorXd& a) const {
     Matrix4d current_pose = cfg->pose * expUp(a);
-    Vector3d position = current_pose.block<3, 1>(0, 3);//logDown(current_pose).head<3>();//.block<3, 1>(0, 3);
+    Vector3d position = current_pose.block<3, 1>(0, 3);
     double x = position.x(), y = position.y(), z = position.z();
     double distance = 0;
     double xyerror = x*x+y*y - (helper->channel_radius-0.2)*(helper->channel_radius-0.2);
     double zerror1 = z - helper->channel_height - 0.2;
     double zerror2 = -0.2 - z;
-    //if (z <= helper->channel_height) {
-    //  distance = fmin(helper->channel_radius - sqrt(x*x + y*y), z - 0.2);
-    //} else {
-    //  distance = helper->channel_radius - sqrt(x*x + y*y + (z-helper->channel_height)*(z-helper->channel_height));
-    //}
     
-    VectorXd ret(3); ret << xyerror, zerror1, zerror2;//-(distance - helper->channel_safety_margin);
-    //if (ret.norm() > 1e-4) {
-    //  cout << "error: " << ret.transpose() << endl;
-    //}
+    VectorXd ret(3); ret << xyerror, zerror1, zerror2;
+    
     return ret;
   }
 
@@ -223,4 +216,13 @@ namespace Needle {
     }
     return ret;
   }
+
+  TotalCurvatureCostError::TotalCurvatureCostError(double total_curvature_limit, NeedleProblemHelperPtr helper, NeedleProblemInstancePtr pi) : err(new TotalCurvatureError(total_curvature_limit, helper, pi)) {}
+
+  VectorXd TotalCurvatureCostError::operator()(const VectorXd& a) const {
+    VectorXd ret = err->operator()(a);
+    ret(0) += err->total_curvature_limit;
+    return ret;
+  }
+
 }

@@ -23,4 +23,5 @@ namespace Needle {
   OpenRAVE::Transform matrixToTransform(const Matrix4d& X);
   OpenRAVE::Transform vecToTransform(const Vector6d& x);
   Matrix4d transformToMatrix(const OpenRAVE::Transform& M);
+
 }

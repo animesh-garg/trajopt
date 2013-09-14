@@ -63,6 +63,10 @@ namespace Needle {
     vector<NeedleProblemInstancePtr> pis;
     vector<ConstraintPtr> self_collision_constraints;
 
+    vector<CostPtr> rotation_costs;
+    vector<CostPtr> speed_costs;
+    vector<CostPtr> clearance_costs;
+
     vector<Vector3d> start_position_error_relax;
     vector<double> start_orientation_error_relax;
     vector<double> goal_distance_error_relax;
@@ -89,6 +93,7 @@ namespace Needle {
     void AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddChannelConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddTotalCurvatureConstraint(OptProb& prob, NeedleProblemInstancePtr helper);
+    void AddTotalCurvatureCost(OptProb& prob, NeedleProblemInstancePtr helper);
     void AddControlConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddPoseConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
     void AddCollisionConstraint(OptProb& prob, NeedleProblemInstancePtr pi);
@@ -110,6 +115,10 @@ namespace Needle {
 
     void AddNeedlesToBullet(OptimizerT& prob);
     void AddNeedleToBullet(NeedleProblemInstancePtr pi, OptimizerT& prob);
+
+    vector<DblVec> GetPhis(OptimizerT& opt);
+    vector<DblVec> GetDeltas(OptimizerT& opt);
+    vector<DblVec> GetCurvatures(OptimizerT& opt);
 
     #ifdef NEEDLE_TEST
     void checkAlignment(DblVec& x);

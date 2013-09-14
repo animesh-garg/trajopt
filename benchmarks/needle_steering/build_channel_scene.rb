@@ -90,15 +90,15 @@ xml.Environment do |e|
   cnt = 0
   NEEDLES.each do |needle|
     cnt += 1
-    e.Robot(name: "needlebot_#{cnt}", file: "needlebot.xml") do |r|
-      #puts needle.inspect
-      #rots = needle[3].split.map(&:to_f)
-      #x, y, z = rots[0..3]
-      #size = rots[3]*Math::PI/180
-      #x *= size; y *= size; z *= size
-      r.translation needle[0..2].join(" ")#"#{needlejointvalues [needle[0], needle[1], needle[2], x, y, z].join(" ")
-      r.rotationaxis needle[3]
-    end
+    #e.Robot(name: "needlebot_#{cnt}", file: "needlebot.xml") do |r|
+    #  #puts needle.inspect
+    #  #rots = needle[3].split.map(&:to_f)
+    #  #x, y, z = rots[0..3]
+    #  #size = rots[3]*Math::PI/180
+    #  #x *= size; y *= size; z *= size
+    #  r.translation needle[0..2].join(" ")#"#{needlejointvalues [needle[0], needle[1], needle[2], x, y, z].join(" ")
+    #  r.rotationaxis needle[3]
+    #end
     goal_joints << needle_to_joints(needle)
   end
 end
@@ -108,7 +108,7 @@ when "xml"
   puts xml.target!
 when "poses"
   goal_joints.each do |goal_joint|
-    puts %Q{start_string_vec.push_back("0,0,0,0,0,0");}
+    puts %Q{start_string_vec.push_back("#{goal_joint[0..1].join(",")},0,0,0,0");}
     puts %Q{goal_string_vec.push_back("#{goal_joint.join(",")}");}
   end
 end

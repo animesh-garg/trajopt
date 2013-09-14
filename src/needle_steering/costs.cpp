@@ -100,7 +100,6 @@ namespace Needle {
       NeedleProblemInstancePtr pi = helper->pis[i];
       for (int j = 0; j < (int) pi->collision_constraints.size(); ++j) {
         ccs.push_back(boost::static_pointer_cast<CollisionConstraint>(pi->collision_constraints[j])->calc());
-        //ccs.push_back(CollisionEvaluatorPtr(new CastCollisionEvaluator(pi->local_configs[j], pi->local_configs[j+1], pi->twistvars.row(j), pi->twistvars.row(j+1))));
       }
     }
     for (int i = 0; i < helper->self_collision_constraints.size(); ++i) {
@@ -112,9 +111,6 @@ namespace Needle {
     ConvexObjectivePtr out(new ConvexObjective());
     vector<AffExpr> exprs;
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
-    //double old_contact_distance = CollisionChecker::GetOrCreate(*env)->GetContactDistance();
-    //CollisionChecker::GetOrCreate(*env)->SetContactDistance(helper->collision_clearance_threshold);
-    //cout << endl << "computing for clearance" << endl;
     BOOST_FOREACH(const CollisionEvaluatorPtr& cc, this->ccs) {
       vector<AffExpr> tmp_exprs;
       cc->CalcDistExpressions(x, tmp_exprs);
@@ -122,10 +118,6 @@ namespace Needle {
         exprs.push_back(exprMult(tmp_exprs[i], -1));
       }
     }
-    //CollisionChecker::GetOrCreate(*env)->SetContactDistance(old_contact_distance);
-    //if (exprs.size() == 0) {
-    //  throw std::runtime_error("should always have at least one result.");
-    //}
     if (exprs.size() > 0) {
       out->addMax(exprs, this->coeff);
     } else {
@@ -137,19 +129,13 @@ namespace Needle {
   double NeedleCollisionClearanceCost::value(const vector<double>& x, Model* model) {
     DblVec dists;
     EnvironmentBasePtr env = helper->pis[0]->local_configs[0]->GetEnv();
-    //double old_contact_distance = CollisionChecker::GetOrCreate(*env)->GetContactDistance();
-    //CollisionChecker::GetOrCreate(*env)->SetContactDistance(helper->collision_clearance_threshold);
-    //cout << endl << "computing for clearance" << endl;
     BOOST_FOREACH(const CollisionEvaluatorPtr& cc, this->ccs) {
       DblVec tmp_dists;
       cc->CalcDists(x, tmp_dists);
-      //cout << tmp_dists.size() << " distances" << endl;
       for (int i = 0; i < tmp_dists.size(); ++i) {
         dists.push_back(-tmp_dists[i]);
       }
     }
-    //cout << "total of " << dists.size() << " distances" << endl;
-    //CollisionChecker::GetOrCreate(*env)->SetContactDistance(old_contact_distance);
     if (dists.size() > 0) {
       return vecMax(dists) * this->coeff;
     } else {
