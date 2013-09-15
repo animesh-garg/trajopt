@@ -39,6 +39,7 @@ namespace Needle {
     current_converged(false),
     perturb_initialization(false),
     seq_result_plotting(false),
+    use_colocation_correction(false),
     noise_scale(1.),
     data_dir(get_current_directory() + "/../data") {
 
@@ -58,6 +59,7 @@ namespace Needle {
     config.add(new Parameter<bool>("verbose", &this->verbose, "verbose"));
     config.add(new Parameter<bool>("separate_planning_first", &this->separate_planning_first, "separate_planning_first"));
     config.add(new Parameter<bool>("simultaneous_planning", &this->simultaneous_planning, "simultaneous_planning"));
+    config.add(new Parameter<bool>("use_colocation_correction", &this->use_colocation_correction, "use_colocation_correction"));
     config.add(new Parameter<double>("env_transparency", &this->env_transparency, "env_transparency"));
     config.add(new Parameter<double>("noise_scale", &this->noise_scale, "noise_scale"));
     config.add(new Parameter<string>("data_dir", &this->data_dir, "data_dir"));
@@ -240,6 +242,10 @@ namespace Needle {
           this->managed_kinbodies.clear();
           
           helper->InitParametersFromConsole(this->argc, this->argv);
+          if (current_sim_index > 0 && this->use_colocation_correction) {
+            // use colocation whenever sim index > 0 
+            helper->method = NeedleProblemHelper::Colocation;
+          }
           helper->n_needles = 1;
 
           helper->starts.push_back(this->starts[i]);
@@ -337,6 +343,10 @@ namespace Needle {
     }
     trajopt::SetUserData(*env, "trajopt_cc", OpenRAVE::UserDataPtr());
     helper->InitParametersFromConsole(this->argc, this->argv);
+    if (current_sim_index > 0 && this->use_colocation_correction) {
+      // use colocation whenever sim index > 0 
+      helper->method = NeedleProblemHelper::Colocation;
+    }
     helper->n_needles = this->n_needles;
     helper->starts = this->starts;
     helper->goals = this->goals;

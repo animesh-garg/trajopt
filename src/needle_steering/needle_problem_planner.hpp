@@ -24,6 +24,7 @@ namespace Needle {
     bool current_converged;
     bool seq_result_plotting;
     bool perturb_initialization;
+    bool use_colocation_correction;
     double env_transparency;
     double deviation;
     double noise_scale;

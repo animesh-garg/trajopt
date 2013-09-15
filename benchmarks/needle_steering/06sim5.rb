@@ -39,15 +39,24 @@ end
 #  points << [goal_trans_x.to_f, goal_trans_y.to_f, goal_trans_z.to_f]
 #end
 
-200.times do
+#200.times do
+#
+#  pts = nil
+#  while pts.nil? or min_dis(pts) < 0.7
+#    pts = all_converged_pts.sample(5)
+#  end
 
-  pts = nil
-  while pts.nil? or min_dis(pts) < 0.7
-    pts = all_converged_pts.sample(5)
-  end
+pts = [
+[-2, 7.25, -0.3],
+[-2.7, 7.7, -0.8],
+[-2.3, 6.9, -1.2],
+[-2.25, 6.8, 0.2],
+[-2.2, 7.45, 0.7],
+
+]
 
   seed = rand(100000000)
-  %w[needle_steering_special2].each do |pg_name|
+  %w[needle_steering].each do |pg_name|
     [1, 2].each do |method|
       [[1, 0], [0, 1]].each do |separate_planning_first, simultaneous_planning|
         exp_options = {
@@ -62,15 +71,15 @@ end
           max_sequential_solves: 10,
           first_run_only: 1,
           data_dir: "../../data",
-          collision_dist_pen: 0.25,
+          #collision_dist_pen: 0.25,
           #goal_vec: "#{goal_trans_x},#{goal_trans_y},#{goal_trans_z},0,1.57,0",
           #start_vec: "-11.17067,5.04934,0,0,1.57,0",
           #start_position_error_relax_x: 0.05,#start_position_error_relax_x,
           #start_position_error_relax_y: 1.25,
           #start_position_error_relax_z: 1.25,
           #start_orientation_error_relax: 0.08,
-          #goal_distance_error_relax: 0.25,
-          seed: seed,
+          goal_distance_error_relax: 0.04,
+          #seed: seed,
         }
 
         command = "../../build/bin/#{pg_name}"
@@ -84,7 +93,7 @@ end
           command += " --start_position_error_relax_y=2.5"
           command += " --start_position_error_relax_z=1.25"
           command += " --start_orientation_error_relax=0.24"
-          command += " --goal_distance_error_relax=0.125"
+          command += " --goal_distance_error_relax=0"
         end
 
         pts.each do |pt|
@@ -93,6 +102,8 @@ end
         end
 
         ENV["TRAJOPT_LOG_THRESH"] = "FATAL"
+        puts command
+        exit(1)
 
         result = `#{command}`
 
@@ -101,4 +112,4 @@ end
     end
   end
 
-end
+#end

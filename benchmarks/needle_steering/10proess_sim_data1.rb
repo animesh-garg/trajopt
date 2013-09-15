@@ -70,18 +70,21 @@ yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
 ]
 }
 
+puts selectorr.where(method: 1, open_loop: 0, collision_status: [0]).pluck(:run_time).mean
+puts selectorr.where(method: 2, open_loop: 0, collision_status: [0]).pluck(:run_time).mean
 
 #(0..10).each do |noise_level|
 [0,1].each do |open_loop|
   [10].each do |collision_clearance_coeff|
     ["needle_steering_11001"].each do |pg_name|
-      [1, 2].each do |method|
+      [[1, 0], [2, 0], [2, 1]].each do |method, use_colocation_correction|
         [[1, 0]].each do |separate_planning_first, simultaneous_planning|
           coords = []
           selectorr.pluck(:noise_scale).uniq.sort.each do |noise_scale|
             range = {
               pg_name: pg_name,
               method: method,
+              use_colocation_correction: use_colocation_correction,
               separate_planning_first: separate_planning_first,
               simultaneous_planning: simultaneous_planning,
               collision_clearance_coeff: collision_clearance_coeff,
@@ -96,6 +99,7 @@ yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
             #total_collision_free_cnt = needles.where(range).pluck(:collision_free_cnt).sum
             #total_collision_free_dis = needles.where(range).pluck(:collision_free_dis).flatten(1).sum
             #total_run_time = needles.where(range).where(collision_status:[0]).where(:distance_to_goal.lt=>0.125).pluck(:run_time).sum
+            #puts needles.where(range).where(collision_status: [0]).pluck(:run_time).mean
             total_run_time = needles.where(range).pluck(:run_time).sum
             #puts "avg collision free cnt: #{total_collision_free_cnt * 1.0 / cnt}"
             #puts "avg collision free dis: #{total_collision_free_dis * 1.0 / total_collision_free_cnt}"
