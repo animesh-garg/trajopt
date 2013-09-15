@@ -91,10 +91,10 @@ ccosts = []
         puts "avg multi iterations: #{(total_multi_iterations*1.0/cnt).round(3)}"
         runtime << (total_run_time*1.0/converged_cnt).round(3)
         convcnt << (converged_cnt*1.0/cnt).round(3)
-        pathcosts << (total_path_costs*1.0/converged_cnt).round(3)
+        pathcosts << (total_path_costs*1.0/converged_cnt*2).round(3)
         twistcosts << (total_twist_costs*1.0/converged_cnt).round(3)
         
-        ccosts << -(total_clearance_costs*1.0/converged_cnt / collision_clearance_coeff).round(3)
+        ccosts << -(total_clearance_costs*1.0/converged_cnt / collision_clearance_coeff*2).round(3)
 
         #csv << [pg_name, method, separate_planning_first, simultaneous_planning, total_collision_free_cnt * 1.0 / cnt, 
         #  total_collision_free_dis * 1.0 / total_collision_free_cnt,

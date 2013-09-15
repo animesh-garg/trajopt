@@ -10,18 +10,15 @@ cnt = 0
 
 File.open('new_points_10000.txt').read.split("\n").map(&:split).each do |goal_trans_x, goal_trans_y, goal_trans_z|
   cnt += 1
-  #if cnt <= 200
-  #  next
-  #end
-  if cnt > 400
+  if cnt > 200
     break
   end
 
   seed = rand(100000000)
   [1, 10].each do |collision_clearance_coeff|
-  %w[needle_steering_10504].each do |pg_name|
+  %w[needle_steering_same_penalty].each do |pg_name|
     [1, 2].each do |method|
-      [[0, 1]].each do |separate_planning_first, simultaneous_planning|
+      [[1, 0]].each do |separate_planning_first, simultaneous_planning|
         exp_options = {
           goal_orientation_constraint: 0,
           r_min: 4,
@@ -34,7 +31,7 @@ File.open('new_points_10000.txt').read.split("\n").map(&:split).each do |goal_tr
           max_sequential_solves: 5,
           first_run_only: 1,
           data_dir: "../../data",
-          env_file_path: "../../data/prostate.env.xml",
+          env_file_path: "../../data/prostate2.env.xml",
           goal_vec: "#{goal_trans_x},#{goal_trans_y},#{goal_trans_z},0,1.57,0",
           start_vec: "-7.5,5.75,0,0,1.57,0",
           start_position_error_relax_x: 0.05,#start_position_error_relax_x,
@@ -56,7 +53,7 @@ File.open('new_points_10000.txt').read.split("\n").map(&:split).each do |goal_tr
 
         result = `#{command}`
 
-        Record.create! exp_options.merge command: command, result: result, pg_name: pg_name, problem: :needle_steering, version: 10504
+        Record.create! exp_options.merge command: command, result: result, pg_name: pg_name, problem: :needle_steering, version: 10505
       end
     end
   end

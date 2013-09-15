@@ -111,4 +111,15 @@ when "poses"
     puts %Q{start_string_vec.push_back("#{goal_joint[0..1].join(",")},0,0,0,0");}
     puts %Q{goal_string_vec.push_back("#{goal_joint.join(",")}");}
   end
+when "pose_data"
+  puts "starts = ["
+  goal_joints.each do |goal_joint|
+    puts %Q{[#{goal_joint[0..1].join(",")},0,0,0,0],}
+  end
+  puts "]"
+  puts "goals = ["
+  goal_joints.each do |goal_joint|
+    puts %Q{[#{goal_joint.join(",")}]}
+  end
+  puts "]"
 end

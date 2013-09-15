@@ -1,7 +1,7 @@
 require_relative 'model'
 require 'csv'
 
-selectorr = Record.where(version: 10605)
+selectorr = Record.where(version: 10505)
 
 needles = selectorr
 
@@ -31,7 +31,6 @@ selectorr.where(clearance_costs: nil).each do |record|
   record.save!
 end
 
-
 selectorr.where(n_multi_iterations: nil).each do |record|
   record.n_multi_iterations = record.result.scan(/n_multi_iterations: (.*)/).first.first.to_i#count > 0
   record.save!
@@ -49,14 +48,14 @@ end
 
 #CSV.open("results_30.csv", "w") do |csv|
 #  csv << %w[pg_name method separate_planning_first simultaneous_planning average_collision_free_count average_collision_free_distance_to_goal average_run_time]
+
+#needles.pluck(:start_position_error_relax_x).uniq.sort.each do |start_position_error_relax_x|
 runtime =[]
 convcnt = []
 pathcosts = []
-twistcosts = []
 ccosts = []
-
-#needles.pluck(:start_position_error_relax_x).uniq.sort.each do |start_position_error_relax_x|
-  ["needle_steering_special2"].each do |pg_name|
+[1,10].each do |collision_clearance_coeff|
+  ["needle_steering_same_penalty"].uniq.each do |pg_name|
     [1, 2].each do |method|
       [[1, 0]].each do |separate_planning_first, simultaneous_planning|
         range = {
@@ -64,6 +63,7 @@ ccosts = []
           method: method,
           separate_planning_first: separate_planning_first,
           simultaneous_planning: simultaneous_planning,
+          collision_clearance_coeff: collision_clearance_coeff,
           #start_position_error_relax_x: start_position_error_relax_x,#start_orientation_error_relax: start_orientation_error_relax,
         }
         puts range
@@ -71,25 +71,22 @@ ccosts = []
         converged_cnt = needles.where(range).where(converged:true).count
         #total_collision_free_cnt = needles.where(range).pluck(:collision_free_cnt).sum
         #total_collision_free_dis = needles.where(range).pluck(:collision_free_dis).flatten(1).sum
-        total_run_time = needles.where(range).pluck(:run_time).sum
+        total_run_time = needles.where(range).where(converged:true).pluck(:run_time).sum
         total_multi_iterations = needles.where(range).pluck(:n_multi_iterations).sum
+        total_path_costs = needles.where(range).where(converged:true).pluck(:path_length_costs).map(&:sum).sum +needles.where(range).where(converged:true).pluck(:twist_costs).map(&:sum).sum
+        total_clearance_costs = needles.where(range).where(converged:true).pluck(:clearance_costs).map(&:sum).sum 
+
         #puts "avg collision free cnt: #{total_collision_free_cnt * 1.0 / cnt}"
         #puts "avg collision free dis: #{total_collision_free_dis * 1.0 / total_collision_free_cnt}"
         #puts "avg run time: #{total_run_time * 1.0 / cnt}"
-        
-        total_path_costs = needles.where(range).where(converged:true).pluck(:path_length_costs).map(&:sum).inject(:+)#sum
-        total_twist_costs = needles.where(range).where(converged:true).pluck(:twist_costs).map(&:sum).inject(:+)#sum
-
-        total_clearance_costs = needles.where(range).where(converged:true).pluck(:clearance_costs).map(&:sum).sum 
-        puts "avg run time: #{(total_run_time*1.0/cnt).round(3)}"
+        puts "avg converged run time: #{(total_run_time*1.0/converged_cnt).round(3)}"
         puts "avg converged cnt: #{(converged_cnt*1.0/cnt).round(3)}"
         puts "avg multi iterations: #{(total_multi_iterations*1.0/cnt).round(3)}"
         runtime << (total_run_time*1.0/cnt).round(3)
         convcnt << (converged_cnt*1.0/cnt).round(3)
-        pathcosts << (total_path_costs*1.0/converged_cnt*2).round(3)
-        twistcosts << (total_twist_costs*1.0/converged_cnt).round(3)
+        pathcosts << (total_path_costs*1.0/converged_cnt).round(3)
         
-        ccosts << -(total_clearance_costs*1.0/converged_cnt / 1*2).round(3)
+        ccosts << -(total_clearance_costs*1.0/converged_cnt / collision_clearance_coeff).round(3)
 
         #csv << [pg_name, method, separate_planning_first, simultaneous_planning, total_collision_free_cnt * 1.0 / cnt, 
         #  total_collision_free_dis * 1.0 / total_collision_free_cnt,
@@ -98,12 +95,13 @@ ccosts = []
       end
     end
   end
-  #end
-puts runtime.join("&")
+end
+  puts runtime.join("&")
   puts convcnt.map{|x| "#{(x*100).round(3)}\\%"}.join("&")
 puts pathcosts.join("&")
-puts twistcosts.join("&")
 puts ccosts.join("&")
+
+  #end
 
 #  csv << %w[pg_name method separate_planning_first simultaneous_planning converged_percentage average_run_time]
 #  channels.pluck(:pg_name).uniq.each do |pg_name|

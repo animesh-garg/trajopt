@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
   states.push_back(planner->starts);
   bool sim_plotting = false;
   bool first_run_only = false;
+  bool open_loop = false;
   string plot_channel_path;
 
   int seed = static_cast<unsigned int>(std::time(0));
@@ -63,6 +64,7 @@ int main(int argc, char** argv) {
     Config config;
     config.add(new Parameter<bool>("sim_plotting", &sim_plotting, "sim_plotting"));
     config.add(new Parameter<bool>("first_run_only", &first_run_only, "first_run_only"));
+    config.add(new Parameter<bool>("open_loop", &open_loop, "open_loop"));
     config.add(new Parameter<string>("plot_channel_path", &plot_channel_path, "plot_channel_path"));
     config.add(new Parameter<int>("seed", &seed, "seed"));
     CommandParser parser(config);
@@ -82,10 +84,13 @@ int main(int argc, char** argv) {
   while (!planner->Finished()) {
     sols = planner->Solve(sols);
     if (first_run_only) break;
-    sols = planner->GetSolutionsWithoutFirstTimestep(sols);
-    planner->SimulateExecution();
-    if (sim_plotting) {
-      sim_plotter->Plot(planner);
+    while (!planner->Finished()) {
+      sols = planner->GetSolutionsWithoutFirstTimestep(sols);
+      planner->SimulateExecution();
+      if (sim_plotting) {
+        sim_plotter->Plot(planner);
+      }
+      if (!open_loop) break;
     }
   }
   cout << "elapsed time: " << util::GetClock() << endl;

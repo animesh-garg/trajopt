@@ -169,10 +169,10 @@ namespace Needle {
           for (int i = 0; i < pi->T; ++i) {
             switch (curvature_formulation) {
               case UseCurvature:
-                pi->initVec.push_back(1.0 / (r_min*2));
+                pi->initVec.push_back(1.0 / (r_min*20));
                 break;
               case UseRadius:
-                pi->initVec.push_back(r_min*2);
+                pi->initVec.push_back(r_min*20);
                 break;
               SWITCH_DEFAULT;
             }
@@ -291,7 +291,7 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::ConfigureOptimizer(OptimizerT& opt) {
-    opt.max_iter_ = 500;    
+    opt.max_iter_ = 100;    
     opt.improve_ratio_threshold_ = this->improve_ratio_threshold;
     opt.trust_shrink_ratio_ = this->trust_shrink_ratio;
     opt.trust_expand_ratio_ = this->trust_expand_ratio;
@@ -342,9 +342,19 @@ namespace Needle {
 
   void NeedleProblemHelper::InitTrajectory(OptProb& prob, NeedleProblemInstancePtr pi) {
     MatrixXd initTraj(pi->T+1, n_dof);
-    for (int idof = 0; idof < n_dof; ++idof) {
-      initTraj.col(idof) = VectorXd::LinSpaced(pi->T+1, pi->start[idof], pi->goal[idof]);
-    }
+    //if (this->channel_planning) { // initialize starting position to be right below target
+    //  for (int idof = 0; idof < 2; ++idof) {
+    //    initTraj.col(idof) = VectorXd::LinSpaced(pi->T+1, pi->goal[idof], pi->goal[idof]);
+    //  }
+    //  for (int idof = 2; idof < n_dof; ++idof) {
+    //    initTraj.col(idof) = VectorXd::LinSpaced(pi->T+1, pi->start[idof], pi->goal[idof]);
+    //  }
+
+    //} else {
+      for (int idof = 0; idof < n_dof; ++idof) {
+        initTraj.col(idof) = VectorXd::LinSpaced(pi->T+1, pi->start[idof], pi->goal[idof]);
+      }
+    //}
     for (int i = 0; i <= pi->T; ++i) {
       pi->local_configs[i]->pose = expUp(initTraj.row(i));
     }
@@ -356,7 +366,9 @@ namespace Needle {
       VectorOfVectorPtr f;
       VectorXd coeffs;
       if (this->channel_planning) {
-        f.reset(new Needle::CirclePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+        Vector6d start_cons; start_cons << 0, 0, 0, 0, 0, 0;
+        start_cons = logDown(se4Up(start_cons));
+        f.reset(new Needle::CirclePositionError(pi->local_configs[0], start_cons, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
         coeffs = Vector3d(1., 1., this->coeff_orientation_error);
       } else {
         f.reset(new Needle::SquarePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));

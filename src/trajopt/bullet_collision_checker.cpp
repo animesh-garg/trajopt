@@ -673,7 +673,7 @@ void BulletCollisionChecker::ContinuousCheckTrajectory(const TrajArray& traj, ve
   vector<TransformVec> link2transforms(links.size(), TransformVec(traj.rows()));
   vector<Configuration::SaverPtr> savers;
   for (int i = 0; i < rads.size(); ++i) {
-    savers.push_back(rads.front()->Save());//Configuration::SaverPtr save = rads.front()->Save();
+    savers.push_back(rads[i]->Save());//Configuration::SaverPtr save = rads.front()->Save();
   }
 
   for (int iStep=0; iStep < traj.rows(); ++iStep) {

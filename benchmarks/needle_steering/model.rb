@@ -24,4 +24,5 @@ class Record
   field :twist_costs
   field :path_length_costs
   field :clearance_costs
+  field :clearance_diff
 end

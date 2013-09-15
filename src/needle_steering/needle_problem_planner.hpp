@@ -26,6 +26,7 @@ namespace Needle {
     bool perturb_initialization;
     double env_transparency;
     double deviation;
+    double noise_scale;
     string data_dir;
     string env_file_path;
     string robot_file_path;
@@ -48,6 +49,7 @@ namespace Needle {
     vector< vector<Vector6d> > simulated_needle_trajectories;
     vector<bool> sim_in_collision;
     int current_sim_index;
+    int current_open_sim_index;
     int n_multi_iterations;
 
     NeedleProblemPlanner(int argc, char **argv);

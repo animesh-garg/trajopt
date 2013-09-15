@@ -170,14 +170,18 @@ namespace Needle {
     Matrix4d current_pose = cfg->pose * expUp(a);
     Vector3d position = current_pose.block<3, 1>(0, 3);
     double x = position.x(), y = position.y(), z = position.z();
-    double distance = 0;
-    double xyerror = x*x+y*y - (helper->channel_radius-0.2)*(helper->channel_radius-0.2);
-    double zerror1 = z - helper->channel_height - 0.2;
-    double zerror2 = -0.2 - z;
+    if (z > helper->channel_height) {
+      double distance_error = x*x+y*y+(z-helper->channel_height)*(z-helper->channel_height) - (helper->channel_radius-0.2)*(helper->channel_radius-0.2);
+      VectorXd ret(3); ret << distance_error, 0, 0;
+      return ret;
+    } else {
+      double xyerror = x*x+y*y - (helper->channel_radius-0.2)*(helper->channel_radius-0.2);
+      double zerror1 = z - helper->channel_height;
+      double zerror2 = -0.2 - z;
+      VectorXd ret(3); ret << xyerror, zerror1, zerror2;
+      return ret;
+    }
     
-    VectorXd ret(3); ret << xyerror, zerror1, zerror2;
-    
-    return ret;
   }
 
   TotalCurvatureError::TotalCurvatureError(double total_curvature_limit, NeedleProblemHelperPtr helper, NeedleProblemInstancePtr pi) : total_curvature_limit(total_curvature_limit), helper(helper), pi(pi) {}

@@ -18,7 +18,6 @@ namespace Needle {
     while (u_2 == 0) {
       u_2 = rndnum();
     }
-    cout << "normal: " << sqrt(-2*log(u_1)) * sin(2*PI*u_2) << endl;
     return sqrt(-2*log(u_1)) * sin(2*PI*u_2);
   }
 
@@ -35,10 +34,12 @@ namespace Needle {
     separate_planning_first(true),
     max_sequential_solves(10),
     current_sim_index(0),
+    current_open_sim_index(0),
     channel_planning(false),
     current_converged(false),
     perturb_initialization(false),
     seq_result_plotting(false),
+    noise_scale(1.),
     data_dir(get_current_directory() + "/../data") {
 
     vector<string> start_string_vec;
@@ -58,6 +59,7 @@ namespace Needle {
     config.add(new Parameter<bool>("separate_planning_first", &this->separate_planning_first, "separate_planning_first"));
     config.add(new Parameter<bool>("simultaneous_planning", &this->simultaneous_planning, "simultaneous_planning"));
     config.add(new Parameter<double>("env_transparency", &this->env_transparency, "env_transparency"));
+    config.add(new Parameter<double>("noise_scale", &this->noise_scale, "noise_scale"));
     config.add(new Parameter<string>("data_dir", &this->data_dir, "data_dir"));
     config.add(new Parameter<string>("env_file_path", &this->env_file_path, "env_file_path"));
     config.add(new Parameter<string>("robot_file_path", &this->robot_file_path, "robot_file_path"));
@@ -103,7 +105,7 @@ namespace Needle {
 
 
         for (int i = 0; i < goal_string_vec.size(); ++i) {
-          this->start_position_error_relax.push_back(Vector3d(2.3, 2.3, 0.1));
+          this->start_position_error_relax.push_back(Vector3d(2.5, 2.5, 0.1));
           this->start_orientation_error_relax.push_back(0.1744);
           this->goal_distance_error_relax.push_back(0);
         }
@@ -212,9 +214,11 @@ namespace Needle {
   }
 
   vector<VectorXd> NeedleProblemPlanner::Solve(const vector<VectorXd>& initial) {
+    this->current_open_sim_index = 0;
     this->n_multi_iterations = 0;
     vector<KinBodyPtr> robots;
     vector<VectorXd> sols = initial;
+    vector<VectorXd> prevsols = initial;
     vector< vector<Vector6d> > states;
     for (int i = 0; i < n_needles; ++i) {
       states.push_back(vector<Vector6d>());
@@ -252,7 +256,7 @@ namespace Needle {
             helper->start_orientation_error_relax.front() = 0;
           }
           for (int j = 0; j < states.size(); ++j) {
-            if (i != j) {
+            if (i != j){// && prev_converged[j]) {
               this->AddSimulatedNeedleToBullet(states[j]);
             }
           }
@@ -265,29 +269,31 @@ namespace Needle {
             subinitial.push_back(sols[i]);
             for (int j = 0; j < subinitial[0].size(); ++j) {
               if (!prev_converged[i]) {
-                if (this->channel_planning) subinitial[0](j) += normal() * 0.1; // the environment is less delicate, allowing for more noise
-                else subinitial[0](j) += normal() * 0.01;
+                if (this->channel_planning) subinitial[0](j) += normal() * 0.4; // the environment is less delicate, allowing for more noise
+                else subinitial[0](j) += normal() * 0.05;
               }
             }
             helper->SetSolutions(subinitial, opt);
           } else {
-            VectorXd cursol = helper->GetSolutions(opt).front();
-            for (int j = 0; j < cursol.size(); ++j) {
-              cursol(j) += normal() * 0.01;
-            }
-            helper->SetSolutions(singleton<VectorXd>(cursol), opt);
+            //VectorXd cursol = helper->GetSolutions(opt).front();
+            //for (int j = 0; j < cursol.size(); ++j) {
+            //  cursol(j) += normal() * 0.05;
+            //}
+            //helper->SetSolutions(singleton<VectorXd>(cursol), opt);
           }
-          if (!this->is_first_needle_run && i == 0 && sequential_solves == 1) {
-            helper->IntegrateControls(opt.x());
-          }
+          //if (!this->is_first_needle_run && i == 0 && sequential_solves == 1) {
+          //  helper->IntegrateControls(opt.x());
+          //}
           if (this->stage_plotting || this->stage_result_plotting) {
             this->plotter.reset(new Needle::TrajPlotter());
           }
           if (this->stage_plotting) {
             opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), true, vector< vector<Vector6d> >()));
           }
+          if (sequential_solves == 1) {
 
-          //helper->IntegrateControls(opt.x());
+          helper->IntegrateControls(opt.x());
+          }
           
           OptStatus status = opt.optimize();
           if (status != OPT_CONVERGED) {
@@ -373,16 +379,16 @@ namespace Needle {
         vector<VectorXd> cursols = helper->GetSolutions(opt);
         for (int i = 0; i < cursols.size(); ++i) {
           for (int j = 0; j < cursols[i].size(); ++j) {
-            cursols[i](j) += normal() * 0.01;
+            cursols[i](j) += normal() * 0.05;
           }
         }
         helper->SetSolutions(cursols, opt);
       }
     }
 
-    if (!this->is_first_needle_run) {
-      helper->IntegrateControls(opt.x());
-    }
+    //if (!this->is_first_needle_run) {
+    //  helper->IntegrateControls(opt.x());
+    //}
 
     if (this->stage_plotting || this->stage_result_plotting) {
       this->plotter.reset(new Needle::TrajPlotter());
@@ -401,6 +407,10 @@ namespace Needle {
       current_converged = status == OPT_CONVERGED;
     }
 
+    //if (!current_converged && prevsols.size() > 0) {
+    //  helper->SetSolutions(prevsols, opt);
+    //}
+
     this->x = opt.x();
 
     return sols;
@@ -409,19 +419,21 @@ namespace Needle {
   Vector6d NeedleProblemPlanner::PerturbState(const Vector6d& state) {
     Vector6d ret = state;
     for (int i = 0; i < 3; ++i) {
-      ret(i) += normal() * 0.05 / 3 / 2;
+      ret(i) += normal() * 0.05 / 4 * noise_scale;
     }
     for (int i = 3; i < 6; ++i) {
-      ret(i) += normal() * 0.025 / 3;
+      ret(i) += normal() * 0.025 * noise_scale;
     }
     return ret;
   }
 
   void NeedleProblemPlanner::SimulateExecution() {
 
-    double phi = helper->GetPhi(this->x, 0, helper->pis.front());
-    double Delta = helper->GetDelta(this->x, 0, helper->pis.front());
-    double curvature_or_radius = helper->GetCurvatureOrRadius(this->x, 0, helper->pis.front());
+    
+    double phi = helper->GetPhi(this->x, current_open_sim_index, helper->pis.front());
+    double Delta = helper->GetDelta(this->x, current_open_sim_index, helper->pis.front());
+    double curvature_or_radius = helper->GetCurvatureOrRadius(this->x, current_open_sim_index, helper->pis.front());
+
 
     //cout << "phi: " << phi << endl;
     //cout << "Delta: " << Delta << endl;
@@ -442,15 +454,34 @@ namespace Needle {
 
     this->starts.front() = new_state;
 
-    TrajArray traj(2, 6); traj.row(0) = state_to_change; traj.row(1) = new_state;
-    vector<ConfigurationPtr> rads; rads.push_back(helper->pis.front()->local_configs[0]); rads.push_back(helper->pis.front()->local_configs[1]); 
+    vector<ConfigurationPtr> rads;
+    //rads.push_back(ConfigurationPtr(new LocalConfiguration(helper->pis.front()->local_configs.front()->body, expUp(state_to_change))));
+    //rads.push_back(ConfigurationPtr(new LocalConfiguration(helper->pis.front()->local_configs.front()->body, expUp(new_state))));
+    
+    rads.push_back(helper->pis.front()->local_configs[current_open_sim_index]); rads.push_back(helper->pis.front()->local_configs[current_open_sim_index+1]); 
+    TrajArray traj(2, 6); traj.row(0) = logDown(helper->pis.front()->local_configs[current_open_sim_index]->pose.inverse() * expUp(state_to_change));
+                          traj.row(1) = logDown(helper->pis.front()->local_configs[current_open_sim_index+1]->pose.inverse() * expUp(new_state));
     vector<Collision> collisions;
 
-    CollisionChecker::GetOrCreate(*this->env)->ContinuousCheckTrajectory(traj, rads, collisions);
+    helper->InitializeCollisionEnvironment();
+
+    double old_dis = CollisionChecker::GetOrCreate(*this->env)->GetContactDistance();
+    CollisionChecker::GetOrCreate(*this->env)->SetContactDistance(0);//ContinuousCheckTrajectory(traj, rads, collisions);
+    //CollisionChecker::GetOrCreate(*this->env)->ContinuousCheckTrajectory(traj, rads, collisions);
+    vector<KinBody::LinkPtr> links;
+    vector<int> inds;
+    rads[0]->GetAffectedLinks(links, true, inds);
+    CollisionChecker::GetOrCreate(*this->env)->CastVsAll(*rads[0], *rads[1], links, toDblVec(traj.row(0)), toDblVec(traj.row(1)), collisions);
+    CollisionChecker::GetOrCreate(*this->env)->SetContactDistance(old_dis);//ContinuousCheckTrajectory(traj, rads, collisions);
+    //boost::shared_ptr<CastCollisionEvaluator> cc(new CastCollisionEvaluator(rads[0], rads[1], )helper->pis.front()->twistvars.row(current_open_sim_index), helper->pis.front()->
+    //  helper->pis.front()->local_configs[current_open_sim_index],helper->pis.front()->local_configs[current_open_sim_index+1]
+
     bool in_collision = collisions.size() > 0;
     //if 
     //BOOST_FOREACH(const Collision& collision, collisions) {
     //  cout << "collision distance: " << collision.distance << endl;
+    //  cout << collision.linkA->GetName() << endl;
+    //  cout << collision.linkB->GetName() << endl;
     //  if (collision.distance < 0) {
     //    in_collision = true;
     //    break;
@@ -481,6 +512,7 @@ namespace Needle {
       --Ts.front();
       this->is_first_needle_run = false;
     }
+    ++current_open_sim_index;
 
   }
 
