@@ -241,7 +241,7 @@ void BasicTrustRegionSQP::setProblem(OptProbPtr prob) {
 }
 
 void BasicTrustRegionSQP::adjustTrustRegion(double ratio) {
-  trust_box_size_ *= ratio;
+  trust_box_size_ = fmin(trust_box_size_ * ratio, 100);
 }
 
 bool BasicTrustRegionSQP::hasViolation(const DblVec& cnt_viols) {

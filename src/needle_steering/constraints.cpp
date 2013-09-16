@@ -149,7 +149,7 @@ namespace Needle {
     switch (helper->formulation) {
       case NeedleProblemHelper::Form1:
       case NeedleProblemHelper::Form2: {
-        return logDown(helper->TransformPose(pose1, phi, Delta, curvature_or_radius).inverse() * pose2);
+        return logDown(helper->TransformPose(pose2, phi, Delta, curvature_or_radius).inverse() * pose1);
       }
       SWITCH_DEFAULT;
     }

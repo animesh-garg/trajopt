@@ -23,9 +23,9 @@ channels = [
 starts = channels.map{|x,y,z,a,b,c| [x,y,0,0,0,0]}
 
 
-[[1, 0], [0, 1]].each do |separate_planning_first, simultaneous_planning|
-  %w[needle_steering_10701_sep needle_steering_10701_same].each do |pg_name|
-    [1,2].each do |method|
+[[1, 0]].each do |separate_planning_first, simultaneous_planning|
+  %w[needle_steering].each do |pg_name|
+    [2].each do |method|
       seed = rand(100000000)
       exp_options = {
         goal_orientation_constraint: 1,
@@ -47,6 +47,7 @@ starts = channels.map{|x,y,z,a,b,c| [x,y,0,0,0,0]}
         start_position_error_relax_z: [0.1] * starts.size,
         start_orientation_error_relax: [0.1744] * starts.size,
         goal_distance_error_relax: [0] * starts.size,
+        #stage_plotting:1,
         #seq_result_plotting: 1,
 
         #collision_dist_pen: 0.1,
@@ -71,8 +72,8 @@ starts = channels.map{|x,y,z,a,b,c| [x,y,0,0,0,0]}
         end
       end
 
-      #puts command
-      #exit(1)
+      puts command
+      exit(1)
 
       ENV["TRAJOPT_LOG_THRESH"] = "FATAL"
 

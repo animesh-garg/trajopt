@@ -296,10 +296,10 @@ namespace Needle {
           if (this->stage_plotting) {
             opt.addCallback(boost::bind(&Needle::TrajPlotter::OptimizerCallback, boost::ref(this->plotter), _1, _2, helper, shared_from_this(), true, vector< vector<Vector6d> >()));
           }
-          if (sequential_solves == 1) {
+          //if (sequential_solves == 1) {
 
-          helper->IntegrateControls(opt.x());
-          }
+          //helper->IntegrateControls(opt.x());
+          //}
           
           OptStatus status = opt.optimize();
           if (status != OPT_CONVERGED) {

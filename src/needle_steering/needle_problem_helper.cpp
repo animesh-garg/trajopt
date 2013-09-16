@@ -189,6 +189,7 @@ namespace Needle {
 
   Matrix4d NeedleProblemHelper::TransformPose(const Matrix4d& pose, double phi, double Delta, double curvature_or_radius) const {
     double theta;
+    Delta = -Delta;
     switch (curvature_formulation) {
       case NeedleProblemHelper::UseCurvature:
         theta = Delta * curvature_or_radius;
@@ -200,9 +201,9 @@ namespace Needle {
     }
     switch (formulation) {
       case NeedleProblemHelper::Form1: {
-        Vector6d w; w << 0, 0, 0, 0, 0, phi;
+        Vector6d w; w << 0, 0, 0, 0, 0, -phi;
         Vector6d v; v << 0, 0, Delta, theta, 0, 0;
-        return pose * expUp(w) * expUp(v);
+        return pose * expUp(v) * expUp(w);//.inverse() * expUp(w).inverse();// * expUp(v);
       }
       case NeedleProblemHelper::Form2: {
         Vector6d w; w << 0, 0, Delta, theta, 0, phi;
@@ -275,14 +276,14 @@ namespace Needle {
         // execute the control input to set local configuration poses
         for (int i = 0; i < n_needles; ++i) {
           MatrixXd twistvals = getTraj(x, pis[i]->twistvars);
-          pis[i]->local_configs[0]->pose *= expUp(twistvals.row(0));
-          for (int j = 0; j < pis[i]->T; ++j) {
+          pis[i]->local_configs[pis[i]->T]->pose = expUp(pis[i]->goal);//*= expUp(twistvals.row(pis[i]->T));
+          for (int j = pis[i]->T-1; j >=0; --j) {
             double phi = GetPhi(x, j, pis[i]);
             double Delta = GetDelta(x, j, pis[i]);
             double curvature_or_radius = GetCurvatureOrRadius(x, j, pis[i]);
-            pis[i]->local_configs[j+1]->pose = TransformPose(pis[i]->local_configs[j]->pose, phi, Delta, curvature_or_radius);
-            setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
+            pis[i]->local_configs[j]->pose = TransformPose(pis[i]->local_configs[j+1]->pose, phi, Delta, curvature_or_radius);
           }
+          setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
         }
         return true; // should_recompute = true: needs to recompute cnts and costs
       }
@@ -307,7 +308,19 @@ namespace Needle {
 
   void NeedleProblemHelper::CreateVariables(OptProb& prob, NeedleProblemInstancePtr pi) {
     // Time frame varies from 0 to T instead of from 0 to T-1
-    AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
+    VarArray tmptwists, tmptwistT;
+    AddVarArray(prob, pi->T, n_dof, "twist", tmptwists);//
+    AddVarArray(prob, 1, n_dof, 0, 0, "twistT", tmptwistT);
+    pi->twistvars.resize(pi->T+1, n_dof);
+    for (int i = 0; i < pi->T; ++i) {
+      for (int j = 0; j < n_dof; ++j) {
+        pi->twistvars.at(i, j) = tmptwists.at(i, j);
+      }
+    }
+    for (int j = 0; j < n_dof; ++j) {
+      pi->twistvars.at(pi->T, j) = tmptwistT.at(0, j);
+    }
+    //AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
     AddVarArray(prob, pi->T, 1, -PI, PI, "phi", pi->phivars);
     pi->Delta_lb = (expUp(pi->goal).topRightCorner<3, 1>() - expUp(pi->start).topRightCorner<3, 1>()).norm() / pi->T;
     switch (speed_formulation) {
@@ -695,12 +708,12 @@ namespace Needle {
       if (i == 0) {
         pis[i]->local_configs[0]->pose = expUp(pis[i]->start);
       }
-      for (int j = 0; j < pis[i]->T; ++j) {
+      for (int j = pis[i]->T-1; j >=0; --j) {
         double phi = GetPhi(x, j, pis[i]);
         double Delta = GetDelta(x, j, pis[i]);
         double curvature_or_radius = GetCurvatureOrRadius(x, j, pis[i]);
         //cout << "phi: " << phi << "; Delta: " << Delta << "; currad: " << curvature_or_radius << endl;
-        pis[i]->local_configs[j+1]->pose = TransformPose(pis[i]->local_configs[j]->pose, phi, Delta, curvature_or_radius);
+        pis[i]->local_configs[j]->pose = TransformPose(pis[i]->local_configs[j+1]->pose, phi, Delta, curvature_or_radius);
       }
       setVec(x, pis[i]->twistvars.m_data, DblVec(pis[i]->twistvars.size(), 0));
     }
