@@ -93,16 +93,16 @@ sdccosts = []
         #puts "avg converged run time: #{(total_run_time*1.0/converged_cnt).round(3)}"
         #puts "avg converged cnt: #{(converged_cnt*1.0/cnt).round(3)}"
         #puts "avg multi iterations: #{(total_multi_iterations*1.0/cnt).round(3)}"
-        runtime << run_times.mean.round(2)
-        sdruntime << run_times.standard_deviation.round(2)
-        convcnt << (converged_cnt*1.0/cnt).round(2)
-        pathcosts << (path_costs.mean*2).round(2)#(total_path_costs*1.0/converged_cnt*2).round(3)
-        sdpathcosts << path_costs.standard_deviation.round(2)
-        twistcosts << twist_costs.mean.round(2)#(total_twist_costs*1.0/converged_cnt).round(3)
-        sdtwistcosts << twist_costs.standard_deviation.round(2)
+        runtime << run_times.mean.round(3)
+        sdruntime << run_times.standard_deviation.round(3)
+        convcnt << (converged_cnt*1.0/cnt).round(3)
+        pathcosts << (path_costs.mean*2).round(3)#(total_path_costs*1.0/converged_cnt*2).round(3)
+        sdpathcosts << (path_costs.standard_deviation*2).round(3)
+        twistcosts << twist_costs.mean.round(3)#(total_twist_costs*1.0/converged_cnt).round(3)
+        sdtwistcosts << twist_costs.standard_deviation.round(3)
 
-        ccosts << -(clearance_costs.mean/collision_clearance_coeff*2).round(2)#-(total_clearance_costs*1.0/converged_cnt / collision_clearance_coeff*2).round(3)
-        sdccosts << (clearance_costs.standard_deviation/collision_clearance_coeff*2).round(2)
+        ccosts << -(clearance_costs.mean/collision_clearance_coeff*2).round(3)#-(total_clearance_costs*1.0/converged_cnt / collision_clearance_coeff*2).round(3)
+        sdccosts << (clearance_costs.standard_deviation/collision_clearance_coeff*2).round(3)
 
         #csv << [pg_name, method, separate_planning_first, simultaneous_planning, total_collision_free_cnt * 1.0 / cnt, 
         #  total_collision_free_dis * 1.0 / total_collision_free_cnt,

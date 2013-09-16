@@ -432,7 +432,7 @@ namespace Needle {
       ret(i) += normal() * 0.05 / 4 * noise_scale;
     }
     for (int i = 3; i < 6; ++i) {
-      ret(i) += normal() * 0.025 * noise_scale;
+      ret(i) += normal() * 0.025 / 4 * noise_scale;
     }
     return ret;
   }

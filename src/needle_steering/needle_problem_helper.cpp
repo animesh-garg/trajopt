@@ -202,7 +202,7 @@ namespace Needle {
       case NeedleProblemHelper::Form1: {
         Vector6d w; w << 0, 0, 0, 0, 0, phi;
         Vector6d v; v << 0, 0, Delta, theta, 0, 0;
-        return pose * expUp(w) * expUp(v);
+        return pose * expUp(v) * expUp(w);// * expUp(v);
       }
       case NeedleProblemHelper::Form2: {
         Vector6d w; w << 0, 0, Delta, theta, 0, phi;
@@ -361,23 +361,23 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::AddStartConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
-    VarVector vars = pi->twistvars.row(0);
+    VarVector vars = pi->twistvars.row(pi->T);
     if (pi->start_position_error_relax.norm() > 1e-4 || pi->start_orientation_error_relax > 1e-4) {
       VectorOfVectorPtr f;
       VectorXd coeffs;
       if (this->channel_planning) {
-        Vector6d start_cons; start_cons << 0, 0, 0, 0, 0, 0;
+        Vector6d start_cons; start_cons << 0, 0, 0, 0, -3.14, 0;
         start_cons = logDown(se4Up(start_cons));
-        f.reset(new Needle::CirclePositionError(pi->local_configs[0], start_cons, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+        f.reset(new Needle::CirclePositionError(pi->local_configs[pi->T], start_cons, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
         coeffs = Vector3d(1., 1., this->coeff_orientation_error);
       } else {
-        f.reset(new Needle::SquarePositionError(pi->local_configs[0], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
+        f.reset(new Needle::SquarePositionError(pi->local_configs[pi->T], pi->start, pi->start_position_error_relax, pi->start_orientation_error_relax, shared_from_this()));
         coeffs = VectorXd(4); coeffs << 1., 1., 1., this->coeff_orientation_error;
       }
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
     } else {
-      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[0], pi->start, shared_from_this()));
+      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[pi->T], pi->start, shared_from_this()));
       Vector6d coeffs; coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "entry")));
       pi->dynamics_constraints.push_back(prob.getConstraints().back());
@@ -386,9 +386,9 @@ namespace Needle {
   }
 
   void NeedleProblemHelper::AddGoalConstraint(OptProb& prob, NeedleProblemInstancePtr pi) {
-    VarVector vars = pi->twistvars.row(pi->T);
+    VarVector vars = pi->twistvars.row(0);
     if (pi->goal_distance_error_relax > 1e-4) {
-      VectorOfVectorPtr f(new Needle::BallPositionError(pi->local_configs[pi->T], pi->goal, pi->goal_distance_error_relax, shared_from_this()));
+      VectorOfVectorPtr f(new Needle::BallPositionError(pi->local_configs[0], pi->goal, pi->goal_distance_error_relax, shared_from_this()));
       Vector4d coeffs;
       if (goal_orientation_constraint) {
         coeffs << 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;
@@ -397,7 +397,7 @@ namespace Needle {
       }
       prob.addConstraint(ConstraintPtr(new ConstraintFromFunc(f, vars, coeffs, EQ, "goal")));
     } else {
-      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[pi->T], pi->goal, shared_from_this()));
+      VectorOfVectorPtr f(new Needle::ExactPositionError(pi->local_configs[0], pi->goal, shared_from_this()));
       Vector6d coeffs; 
       if (goal_orientation_constraint) {
         coeffs << 1., 1., 1., this->coeff_orientation_error, this->coeff_orientation_error, this->coeff_orientation_error;

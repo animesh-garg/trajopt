@@ -71,13 +71,14 @@ yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
 }
 
 puts selectorr.where(method: 1, open_loop: 0, collision_status: [0]).pluck(:run_time).mean
-puts selectorr.where(method: 2, open_loop: 0, collision_status: [0]).pluck(:run_time).mean
+puts selectorr.where(method: 2, open_loop: 0, use_colocation_correction: 0, collision_status: [0]).pluck(:run_time).mean
+puts selectorr.where(method: 2, open_loop: 0, use_colocation_correction: 1, collision_status: [0]).pluck(:run_time).mean
 
 #(0..10).each do |noise_level|
-[0,1].each do |open_loop|
+[0].each do |open_loop|
   [10].each do |collision_clearance_coeff|
-    ["needle_steering_11001"].each do |pg_name|
-      [[1, 0], [2, 0], [2, 1]].each do |method, use_colocation_correction|
+    ["needle_steering_11001_correction"].each do |pg_name|
+      [[2, 1]].each do |method, use_colocation_correction|
         [[1, 0]].each do |separate_planning_first, simultaneous_planning|
           coords = []
           selectorr.pluck(:noise_scale).uniq.sort.each do |noise_scale|
