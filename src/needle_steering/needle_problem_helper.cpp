@@ -308,19 +308,19 @@ namespace Needle {
 
   void NeedleProblemHelper::CreateVariables(OptProb& prob, NeedleProblemInstancePtr pi) {
     // Time frame varies from 0 to T instead of from 0 to T-1
-    VarArray tmptwists, tmptwistT;
-    AddVarArray(prob, pi->T, n_dof, "twist", tmptwists);//
-    AddVarArray(prob, 1, n_dof, 0, 0, "twistT", tmptwistT);
-    pi->twistvars.resize(pi->T+1, n_dof);
-    for (int i = 0; i < pi->T; ++i) {
-      for (int j = 0; j < n_dof; ++j) {
-        pi->twistvars.at(i, j) = tmptwists.at(i, j);
-      }
-    }
-    for (int j = 0; j < n_dof; ++j) {
-      pi->twistvars.at(pi->T, j) = tmptwistT.at(0, j);
-    }
-    //AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
+    //VarArray tmptwists, tmptwistT;
+    //AddVarArray(prob, pi->T, n_dof, "twist", tmptwists);//
+    //AddVarArray(prob, 1, n_dof, 0, 0, "twistT", tmptwistT);
+    //pi->twistvars.resize(pi->T+1, n_dof);
+    //for (int i = 0; i < pi->T; ++i) {
+    //  for (int j = 0; j < n_dof; ++j) {
+    //    pi->twistvars.at(i, j) = tmptwists.at(i, j);
+    //  }
+    //}
+    //for (int j = 0; j < n_dof; ++j) {
+    //  pi->twistvars.at(pi->T, j) = tmptwistT.at(0, j);
+    //}
+    AddVarArray(prob, pi->T+1, n_dof, "twist", pi->twistvars);
     AddVarArray(prob, pi->T, 1, -PI, PI, "phi", pi->phivars);
     pi->Delta_lb = (expUp(pi->goal).topRightCorner<3, 1>() - expUp(pi->start).topRightCorner<3, 1>()).norm() / pi->T;
     switch (speed_formulation) {
