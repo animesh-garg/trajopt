@@ -48,7 +48,6 @@ starts = channels.map{|x,y,z,a,b,c| [x,y,0,0,0,0]}
         start_position_error_relax_z: [0.1] * starts.size,
         start_orientation_error_relax: [0.1744] * starts.size,
         goal_distance_error_relax: [0] * starts.size,
-        stage_plotting: 1,
         #seq_result_plotting: 1,
 
         #collision_dist_pen: 0.1,

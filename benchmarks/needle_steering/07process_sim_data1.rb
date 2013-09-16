@@ -7,41 +7,41 @@ needles = selectorr
 
 puts "#{selectorr.count} records in total"
 
-selectorr.where(run_time: nil).each do |record|
-  record.run_time = record.result.scan(/elapsed time: (.*)$/).first.first.to_f
-  record.save!
-end
-
+#selectorr.where(run_time: nil).each do |record|
+#  record.run_time = record.result.scan(/elapsed time: (.*)$/).first.first.to_f
+#  record.save!
+#end
+#
 selectorr.where(converged: nil).each do |record|
   record.converged = record.result.scan(/status: converged/).count > 0
   record.save!
 end
-
-selectorr.where(twist_costs: nil).each do |record|
+#
+selectorr.where(converged:true).where(twist_costs: nil).each do |record|
   record.twist_costs = eval(record.result.scan(/twist costs: (.*)$/).first.first)
   record.save!
 end
 
-selectorr.where(path_length_costs: nil).each do |record|
+selectorr.where(converged:true).where(path_length_costs: nil).each do |record|
   record.path_length_costs = eval(record.result.scan(/path length costs: (.*)$/).first.first)
   record.save!
 end
 
-selectorr.where(clearance_costs: nil).each do |record|
+selectorr.where(converged:true).where(clearance_costs: nil).each do |record|
   record.clearance_costs = eval(record.result.scan(/clearance costs: (.*)$/).first.first)
   record.save!
 end
 
-selectorr.where(n_multi_iterations: nil).each do |record|
+selectorr.where(converged:true).where(n_multi_iterations: nil).each do |record|
   record.n_multi_iterations = record.result.scan(/n_multi_iterations: (.*)/).first.first.to_i#count > 0
   record.save!
 end
 
-#needles.where(collision_free_cnt: nil).each do |record|
+#needles.where(converged:true).where(collision_free_cnt: nil).each do |record|
 #  record.collision_free_cnt = record.result.scan(/is not in collision/).count
 #  record.save!
 #end
-#
+
 #needles.where(collision_free_dis: nil).each do |record|
 #  record.collision_free_dis = record.result.scan(/is not in collision. The distance to goal is (\d+\.\d+)/).map{|x| x.first.to_f}
 #  record.save!
@@ -60,8 +60,8 @@ sdpathcosts = []
 twistcosts = []
 sdtwistcosts = []
 
-  ["needle_steering_10701_same"].each do |pg_name|
-    [1].each do |method|
+  selectorr.pluck(:pg_name).uniq.each do |pg_name|
+    [2].each do |method|
       [[1, 0]].each do |separate_planning_first, simultaneous_planning|
         range = {
           pg_name: pg_name,
