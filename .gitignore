@@ -31,3 +31,5 @@ dox_build
 .*.swo
 .*.swm
 .*.swp
+
+built_trajopt/
