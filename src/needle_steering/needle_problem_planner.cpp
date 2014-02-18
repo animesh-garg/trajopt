@@ -169,7 +169,7 @@ namespace Needle {
       if (start_string_vec.size() == 0) {
         start_string_vec.push_back("-7.5,5.75,0,0,1.57,0");
         goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,1.57,0");
-        /*&start_string_vec.push_back("-7.5,4.75,0,0,1.57,0");
+        /*start_string_vec.push_back("-7.5,4.75,0,0,1.57,0");
         goal_string_vec.push_back("-2.71912,8.00334,-1.12736,0,1.57,0");
         start_string_vec.push_back("-7.5,5.25,0,0,1.57,0");
         goal_string_vec.push_back("-1.99682,7.43527,-1.85617,0,1.57,0");
@@ -188,7 +188,7 @@ namespace Needle {
         this->env_file_path = data_dir + "/prostate.env.xml";
       }
       if (this->robot_file_path.length() == 0) {
-        this->robot_file_path = data_dir + "/needlebot.xml";
+        this->robot_file_path = data_dir + "/ribbonbot.xml";
       }
     }
 
