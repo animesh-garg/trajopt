@@ -18,13 +18,13 @@
 		<Geom type="cylinder">
 			<radius>.05</radius>
 			<height>0.3</height>
-			<Translation> 0 0 0.25 </Translation>
+			<Translation> 0 0 0 </Translation>
 			<rotationaxis>0 1 0 90</rotationaxis>
 		</Geom>
 		
 		<Geom type="box">
-			<Extents> 0.05 0.15 0.25 </Extents>
-			<Translation> 0 0 0 </Translation>
+			<Extents> 0.05 0.15 0.125 </Extents>
+			<Translation> 0 0 -0.125 </Translation>
 		</Geom>
  	</Body>
 </KinBody>
