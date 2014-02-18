@@ -28,6 +28,7 @@ namespace Needle {
     stage_plotting(false),
     stage_result_plotting(false),
     verbose(false),
+    
     env_transparency(0.1),
     is_first_needle_run(true),
     deviation(INFINITY),
@@ -35,7 +36,11 @@ namespace Needle {
     max_sequential_solves(10),
     current_sim_index(0),
     current_open_sim_index(0),
+    
+    //ribbon_planning(true), //Flags for current problem
     channel_planning(false),
+    //needle_planning(false),
+    
     current_converged(false),
     perturb_initialization(false),
     seq_result_plotting(false),
@@ -79,6 +84,46 @@ namespace Needle {
     CommandParser parser(config);
     parser.read(argc, argv, true);
 
+    /*if (ribbon_planning) {
+        if (start_string_vec.size() == 0) {
+                
+            start_string_vec.push_back("-1.25,0.0,0,0,0,0");
+            goal_string_vec.push_back("-1.25,0.0,7,-1.1780972450961724,-0.0,-0.0");
+            start_string_vec.push_back("1.25,0.0,0,0,0,0");
+            goal_string_vec.push_back("1.25,0.0,7,1.1780972450961724,0.0,0.0");
+            start_string_vec.push_back("0.0,-1.25,0,0,0,0");
+            goal_string_vec.push_back("0.0,-1.25,7,-0.0,-1.1780972450961724,-0.0");
+            start_string_vec.push_back("0.0,1.25,0,0,0,0");
+            goal_string_vec.push_back("0.0,1.25,7,0.0,1.1780972450961724,0.0");
+            start_string_vec.push_back("-1.5556349186104046,-1.5556349186104048,0,0,0,0");
+            goal_string_vec.push_back("-1.5556349186104046,-1.5556349186104048,3.5,0.0,0.0,0.0");
+            start_string_vec.push_back("-2.12503681783595,-0.5694018992255463,0,0,0,0");
+            goal_string_vec.push_back("-2.12503681783595,-0.5694018992255463,3.5,0.0,0.0,0.0");
+            start_string_vec.push_back("-2.1250368178359507,0.5694018992255448,0,0,0,0");
+            goal_string_vec.push_back("-2.1250368178359507,0.5694018992255448,3.5,0.0,0.0,0.0");
+            start_string_vec.push_back("-1.555634918610405,1.5556349186104046,0,0,0,0");
+            goal_string_vec.push_back("-1.555634918610405,1.5556349186104046,3.5,0.0,0.0,0.0");
+            start_string_vec.push_back("1.4142135623730951,1.414213562373095,0,0,0,0");
+            goal_string_vec.push_back("1.4142135623730951,1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+            start_string_vec.push_back("2.0,0.0,0,0,0,0");
+            goal_string_vec.push_back("2.0,0.0,3.5,0.0,0.39269908169872414,0.0");
+            start_string_vec.push_back("1.4142135623730951,-1.414213562373095,0,0,0,0");
+            goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+            
+            for (int i = 0; i < goal_string_vec.size(); ++i) {
+                this->start_position_error_relax.push_back(Vector3d(2.5, 2.5, 0.1));
+                this->start_orientation_error_relax.push_back(0.1744);
+                this->goal_distance_error_relax.push_back(0);
+            }
+        }
+        if (this->env_file_path.length() == 0) {
+            this->env_file_path = data_dir + "/ribbon.env.xml";
+        }
+        if (this->robot_file_path.length() == 0) {
+            this->robot_file_path = data_dir + "/ribbonbot.xml";
+        }
+    }*/
+    
     if (channel_planning) {
       if (start_string_vec.size() == 0) {
 
@@ -118,7 +163,9 @@ namespace Needle {
       if (this->robot_file_path.length() == 0) {
         this->robot_file_path = data_dir + "/channelbot.xml";
       }
-    } else {
+    }
+    //Ribbon_planning
+    else{
       if (start_string_vec.size() == 0) {
         start_string_vec.push_back("-7.5,5.75,0,0,1.57,0");
         goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,1.57,0");
@@ -141,7 +188,7 @@ namespace Needle {
         this->env_file_path = data_dir + "/prostate.env.xml";
       }
       if (this->robot_file_path.length() == 0) {
-        this->robot_file_path = data_dir + "/needlebot.xml";
+        this->robot_file_path = data_dir + "/ribbon.xml";
       }
     }
 
