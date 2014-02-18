@@ -167,6 +167,10 @@ namespace Needle {
     //Ribbon_planning
     else{
       if (start_string_vec.size() == 0) {
+        start_string_vec.push_back("1.4142135623730951,-1.414213562373095,0,0,0,0");
+        goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+  
+        //original needle planning start-goal positions.
         /*start_string_vec.push_back("-7.5,5.75,0,0,1.57,0");
         goal_string_vec.push_back("-3.2396,6.46645,0.301649,0,1.57,0");
         start_string_vec.push_back("-7.5,4.75,0,0,1.57,0");
@@ -174,9 +178,9 @@ namespace Needle {
         start_string_vec.push_back("-7.5,5.25,0,0,1.57,0");
         goal_string_vec.push_back("-1.99682,7.43527,-1.85617,0,1.57,0");
         start_string_vec.push_back("-7.5,5.35,0,0,1.57,0");
-        goal_string_vec.push_back("-2.0386,7.0732,0.493712,0,1.57,0");*/
+        goal_string_vec.push_back("-2.0386,7.0732,0.493712,0,1.57,0");
         start_string_vec.push_back("-7.5,5.45,0,0,1.57,0");
-        goal_string_vec.push_back("-2.74817,5.83943,0.104912,0,1.57,0");
+        goal_string_vec.push_back("-2.74817,5.83943,0.104912,0,1.57,0");*/
 
         for (int i = 0; i < goal_string_vec.size(); ++i) {
           this->start_position_error_relax.push_back(Vector3d(0.05, 2.5, 1.25));
@@ -185,7 +189,7 @@ namespace Needle {
         }
       }
       if (this->env_file_path.length() == 0) {
-        this->env_file_path = data_dir + "/prostate.env.xml";
+        this->env_file_path = data_dir + "/ribbon.env.xml";
       }
       if (this->robot_file_path.length() == 0) {
         this->robot_file_path = data_dir + "/ribbonbot.xml";
