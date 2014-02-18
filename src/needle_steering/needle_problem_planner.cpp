@@ -38,7 +38,8 @@ namespace Needle {
     current_open_sim_index(0),
     
     //ribbon_planning(true), //Flags for current problem
-    channel_planning(false),
+    //channel_planning(false),
+	channel_planning(true),
     //needle_planning(false),
     
     current_converged(false),
@@ -129,7 +130,7 @@ namespace Needle {
 
         start_string_vec.push_back("-1.25,0.0,0,0,0,0");
         goal_string_vec.push_back("-1.25,0.0,7,-1.1780972450961724,-0.0,-0.0");
-        start_string_vec.push_back("1.25,0.0,0,0,0,0");
+        /*start_string.vec_push("back.1,25.0,0,0,0,0");
         goal_string_vec.push_back("1.25,0.0,7,1.1780972450961724,0.0,0.0");
         start_string_vec.push_back("0.0,-1.25,0,0,0,0");
         goal_string_vec.push_back("0.0,-1.25,7,-0.0,-1.1780972450961724,-0.0");
@@ -148,7 +149,7 @@ namespace Needle {
         start_string_vec.push_back("2.0,0.0,0,0,0,0");
         goal_string_vec.push_back("2.0,0.0,3.5,0.0,0.39269908169872414,0.0");
         start_string_vec.push_back("1.4142135623730951,-1.414213562373095,0,0,0,0");
-        goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");
+        goal_string_vec.push_back("1.4142135623730951,-1.414213562373095,3.5,0.0,0.39269908169872414,0.0");*/
 
 
         for (int i = 0; i < goal_string_vec.size(); ++i) {
@@ -161,7 +162,7 @@ namespace Needle {
         this->env_file_path = data_dir + "/channel.env.xml";
       }
       if (this->robot_file_path.length() == 0) {
-        this->robot_file_path = data_dir + "/channelbot.xml";
+        this->robot_file_path = data_dir + "/ribbonbot.xml";
       }
     }
     //Ribbon_planning
