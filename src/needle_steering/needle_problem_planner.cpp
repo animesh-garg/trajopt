@@ -188,7 +188,7 @@ namespace Needle {
         this->env_file_path = data_dir + "/prostate.env.xml";
       }
       if (this->robot_file_path.length() == 0) {
-        this->robot_file_path = data_dir + "/ribbon.xml";
+        this->robot_file_path = data_dir + "/needlebot.xml";
       }
     }
 
